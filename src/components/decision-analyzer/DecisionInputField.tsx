@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { placeholders } from "./utils/placeholders";
@@ -19,6 +19,8 @@ export const DecisionInputField: React.FC<DecisionInputFieldProps> = ({
 }) => {
   // State to track the current placeholder
   const [currentPlaceholder, setCurrentPlaceholder] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+  const [hasUserInput, setHasUserInput] = useState(false);
   
   // Set a random placeholder when the component mounts
   useEffect(() => {
@@ -28,6 +30,7 @@ export const DecisionInputField: React.FC<DecisionInputFieldProps> = ({
   const useBetterPhrasing = () => {
     if (betterPhrasing) {
       setDecisionTitle(betterPhrasing);
+      setHasUserInput(true);
     }
   };
   
@@ -37,19 +40,54 @@ export const DecisionInputField: React.FC<DecisionInputFieldProps> = ({
     }
   };
 
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+    // Only clear the input if the user hasn't entered any text
+    if (!hasUserInput && decisionTitle === currentPlaceholder) {
+      setDecisionTitle('');
+    }
+  }, [hasUserInput, decisionTitle, currentPlaceholder, setDecisionTitle]);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+    // If user didn't enter any text, show the placeholder again
+    if (!decisionTitle.trim()) {
+      setDecisionTitle(currentPlaceholder);
+      setHasUserInput(false);
+    }
+  }, [decisionTitle, currentPlaceholder, setDecisionTitle]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDecisionTitle(e.target.value);
+    if (e.target.value.trim() !== '' && e.target.value !== currentPlaceholder) {
+      setHasUserInput(true);
+    } else if (e.target.value.trim() === '') {
+      setHasUserInput(false);
+    }
+  };
+
+  // Initialize with placeholder text when component mounts
+  useEffect(() => {
+    if (!decisionTitle && !hasUserInput && currentPlaceholder) {
+      setDecisionTitle(currentPlaceholder);
+    }
+  }, [currentPlaceholder, decisionTitle, hasUserInput, setDecisionTitle]);
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
         <Input 
           id="decision" 
-          placeholder={currentPlaceholder}
           value={decisionTitle} 
-          onChange={e => setDecisionTitle(e.target.value)} 
+          onChange={handleChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           onKeyDown={handleKeyDown}
+          className={!hasUserInput && !isFocused ? "text-muted-foreground" : ""}
         />
         <Button 
           onClick={onAnalyze}
-          disabled={!decisionTitle.trim()}
+          disabled={!decisionTitle.trim() || (!hasUserInput && decisionTitle === currentPlaceholder)}
         >
           Analyze
         </Button>

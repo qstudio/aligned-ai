@@ -59,7 +59,8 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
             onAnalyze={onAnalyze}
           />
           
-          {(importance || timeframe) && (
+          {/* Hide the context indicators as they don't seem to do anything */}
+          {false && (importance || timeframe) && (
             <>
               <Separator />
               <ContextIndicators 
@@ -73,7 +74,8 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
         </CardContent>
       </Card>
       
-      <Card>
+      {/* Set the experiment mode to disabled by default */}
+      <Card className="hidden">
         <CardContent className="p-3">
           <ExperimentModeSelector 
             experimentMode={experimentMode}
