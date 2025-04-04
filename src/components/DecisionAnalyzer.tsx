@@ -7,15 +7,30 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, Plus, Trash2, Wand2 } from "lucide-react";
+import { Check, Plus, Trash2, Wand2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 type Option = {
   name: string;
   pros: string[];
   cons: string[];
+};
+
+type ContextData = {
+  importance: "low" | "medium" | "high";
+  timeframe: "short" | "medium" | "long";
+  confidence: number;
 };
 
 const DecisionAnalyzer: React.FC = () => {
@@ -27,8 +42,18 @@ const DecisionAnalyzer: React.FC = () => {
   const [currentPro, setCurrentPro] = useState("");
   const [currentCon, setCurrentCon] = useState("");
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
-  const [importance, setImportance] = useState<"low" | "medium" | "high">("medium");
-  const [timeframe, setTimeframe] = useState<"short" | "medium" | "long">("medium");
+  
+  // Replace explicit inputs with extracted context
+  const [extractedContext, setExtractedContext] = useState<ContextData>({
+    importance: "medium",
+    timeframe: "medium",
+    confidence: 0.5
+  });
+  
+  const [needsMoreContext, setNeedsMoreContext] = useState(false);
+  const [manualImportance, setManualImportance] = useState<"low" | "medium" | "high">("medium");
+  const [manualTimeframe, setManualTimeframe] = useState<"short" | "medium" | "long">("medium");
+  
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -93,6 +118,72 @@ const DecisionAnalyzer: React.FC = () => {
     newOptions[optionIndex].cons.splice(conIndex, 1);
     setOptions(newOptions);
   };
+
+  // Add function to extract context from the decision title
+  const extractContextFromTitle = (title: string) => {
+    const lowerTitle = title.toLowerCase();
+    let importance: "low" | "medium" | "high" = "medium";
+    let timeframe: "short" | "medium" | "long" = "medium";
+    let confidence = 0.4; // Default low confidence
+    
+    // Check for importance indicators
+    if (lowerTitle.includes("critical") || 
+        lowerTitle.includes("important") || 
+        lowerTitle.includes("significant") ||
+        lowerTitle.includes("major") ||
+        lowerTitle.includes("life") ||
+        lowerTitle.includes("career") ||
+        lowerTitle.includes("marriage") ||
+        lowerTitle.includes("health")) {
+      importance = "high";
+      confidence = 0.7;
+    } else if (lowerTitle.includes("minor") || 
+               lowerTitle.includes("small") || 
+               lowerTitle.includes("trivial") ||
+               lowerTitle.includes("little")) {
+      importance = "low";
+      confidence = 0.7;
+    }
+    
+    // Check for timeframe indicators
+    if (lowerTitle.includes("urgent") || 
+        lowerTitle.includes("immediate") || 
+        lowerTitle.includes("today") ||
+        lowerTitle.includes("right now") ||
+        lowerTitle.includes("quickly")) {
+      timeframe = "short";
+      confidence = 0.8;
+    } else if (lowerTitle.includes("long-term") || 
+               lowerTitle.includes("future") || 
+               lowerTitle.includes("years") ||
+               lowerTitle.includes("permanent") ||
+               lowerTitle.includes("lifetime")) {
+      timeframe = "long";
+      confidence = 0.8;
+    } else if (lowerTitle.includes("next month") ||
+               lowerTitle.includes("soon") ||
+               lowerTitle.includes("few weeks")) {
+      timeframe = "medium";
+      confidence = 0.7;
+    }
+    
+    if (title.length < 15) {
+      // Very short titles likely don't contain enough info
+      confidence = 0.2;
+    }
+    
+    return { importance, timeframe, confidence };
+  };
+  
+  useEffect(() => {
+    if (decisionTitle.trim().length > 5) {
+      const extracted = extractContextFromTitle(decisionTitle);
+      setExtractedContext(extracted);
+      setNeedsMoreContext(extracted.confidence < 0.5);
+      setManualImportance(extracted.importance);
+      setManualTimeframe(extracted.timeframe);
+    }
+  }, [decisionTitle]);
 
   const generateOptions = () => {
     if (!decisionTitle.trim()) {
@@ -250,6 +341,10 @@ const DecisionAnalyzer: React.FC = () => {
     setIsAnalyzing(true);
     setAnalysis(null);
     
+    // Get the final importance and timeframe (either from extracted or manual input)
+    const finalImportance = needsMoreContext ? manualImportance : extractedContext.importance;
+    const finalTimeframe = needsMoreContext ? manualTimeframe : extractedContext.timeframe;
+    
     // Simulate analysis delay (in a real app, this would be an API call to an AI service)
     setTimeout(() => {
       let suggestionText = "";
@@ -269,7 +364,7 @@ const DecisionAnalyzer: React.FC = () => {
       const bestOption = optionScores[0];
       
       // Generate analysis text based on decision factors
-      suggestionText = `Based on your analysis of "${decisionTitle}" (${importance} importance, ${timeframe}-term decision):\n\n`;
+      suggestionText = `Based on your analysis of "${decisionTitle}" (${finalImportance} importance, ${finalTimeframe}-term decision):\n\n`;
       
       // Add option comparison
       suggestionText += "Option comparison:\n";
@@ -284,13 +379,13 @@ const DecisionAnalyzer: React.FC = () => {
       suggestionText += `\nRecommendation: ${bestOption.name} appears to be the stronger choice based on your analysis.\n\n`;
       
       // Add contextual advice
-      if (importance === "high") {
+      if (finalImportance === "high") {
         suggestionText += "Since this is a high-importance decision, consider gathering more information or consulting others before finalizing.\n";
       }
       
-      if (timeframe === "long") {
+      if (finalTimeframe === "long") {
         suggestionText += "For this long-term decision, weigh the long-term implications more heavily than short-term conveniences.\n";
-      } else if (timeframe === "short") {
+      } else if (finalTimeframe === "short") {
         suggestionText += "For this short-term decision, focus on immediate outcomes while being mindful of potential consequences.\n";
       }
       
@@ -339,51 +434,143 @@ const DecisionAnalyzer: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <Label>Decision importance</Label>
-            <RadioGroup
-              value={importance}
-              onValueChange={(value) => setImportance(value as "low" | "medium" | "high")}
-              className="flex space-x-2"
-            >
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem value="low" id="low" />
-                <Label htmlFor="low">Low</Label>
-              </div>
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem value="medium" id="medium" />
-                <Label htmlFor="medium">Medium</Label>
-              </div>
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem value="high" id="high" />
-                <Label htmlFor="high">High</Label>
-              </div>
-            </RadioGroup>
+        {decisionTitle.length > 0 && (
+          <div className="p-3 bg-secondary/50 rounded-md flex items-start gap-2">
+            <div className="mt-0.5">
+              {extractedContext.confidence >= 0.5 ? (
+                <Check className="h-5 w-5 text-green-500" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+              )}
+            </div>
+            <div className="text-sm flex-1">
+              <p className="font-medium">
+                {extractedContext.confidence >= 0.5 
+                  ? "I understand your decision context" 
+                  : "I need more context about your decision"}
+              </p>
+              <p className="text-muted-foreground">
+                This appears to be a{" "}
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <span className="underline decoration-dotted cursor-help">
+                      {extractedContext.importance} importance
+                    </span>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-80">
+                    <p className="text-sm">
+                      {extractedContext.importance === "high" 
+                        ? "High importance decisions significantly impact your life or well-being." 
+                        : extractedContext.importance === "medium"
+                          ? "Medium importance decisions have moderate consequences but aren't life-changing."
+                          : "Low importance decisions have minor impact and consequences."}
+                    </p>
+                  </HoverCardContent>
+                </HoverCard>
+                ,{" "}
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <span className="underline decoration-dotted cursor-help">
+                      {extractedContext.timeframe}-term
+                    </span>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-80">
+                    <p className="text-sm">
+                      {extractedContext.timeframe === "long" 
+                        ? "Long-term decisions have effects that last for years." 
+                        : extractedContext.timeframe === "medium"
+                          ? "Medium-term decisions have effects lasting weeks to months."
+                          : "Short-term decisions have immediate effects but don't last long."}
+                    </p>
+                  </HoverCardContent>
+                </HoverCard>
+                {" "}decision.
+                {extractedContext.confidence < 0.5 && (
+                  <Button 
+                    variant="link" 
+                    className="text-decision-purple p-0 h-auto text-sm" 
+                    onClick={() => setNeedsMoreContext(true)}
+                  >
+                    Provide more context
+                  </Button>
+                )}
+              </p>
+            </div>
           </div>
-          
-          <div className="flex justify-between items-center">
-            <Label>Time frame</Label>
-            <RadioGroup
-              value={timeframe}
-              onValueChange={(value) => setTimeframe(value as "short" | "medium" | "long")}
-              className="flex space-x-2"
-            >
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem value="short" id="short" />
-                <Label htmlFor="short">Short</Label>
+        )}
+
+        <Dialog open={needsMoreContext} onOpenChange={setNeedsMoreContext}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add more context to your decision</DialogTitle>
+              <DialogDescription>
+                This helps us provide more accurate analysis and recommendations.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>How important is this decision?</Label>
+                <div className="flex gap-2">
+                  <Button 
+                    variant={manualImportance === "low" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualImportance("low")}
+                  >
+                    Low
+                  </Button>
+                  <Button 
+                    variant={manualImportance === "medium" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualImportance("medium")}
+                  >
+                    Medium
+                  </Button>
+                  <Button 
+                    variant={manualImportance === "high" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualImportance("high")}
+                  >
+                    High
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem value="medium" id="medium-term" />
-                <Label htmlFor="medium-term">Medium</Label>
+              
+              <div className="space-y-2">
+                <Label>What's the time frame?</Label>
+                <div className="flex gap-2">
+                  <Button 
+                    variant={manualTimeframe === "short" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualTimeframe("short")}
+                  >
+                    Short
+                  </Button>
+                  <Button 
+                    variant={manualTimeframe === "medium" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualTimeframe("medium")}
+                  >
+                    Medium
+                  </Button>
+                  <Button 
+                    variant={manualTimeframe === "long" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualTimeframe("long")}
+                  >
+                    Long
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem value="long" id="long" />
-                <Label htmlFor="long">Long</Label>
-              </div>
-            </RadioGroup>
-          </div>
-        </div>
+            </div>
+            
+            <DialogFooter className="sm:justify-start">
+              <DialogClose asChild>
+                <Button type="button">Done</Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Separator className="my-2" />
 
