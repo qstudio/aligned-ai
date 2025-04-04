@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Facebook, AlertCircle, RefreshCw } from "lucide-react";
+import { Facebook, AlertCircle, RefreshCw, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useFacebookProfile } from "@/hooks/useFacebookProfile";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 
 export interface FacebookProfileInputProps {
   onProfileDataChange: (profileData: any | null) => void;
@@ -55,8 +56,24 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
       
       // Only show success toast when profile data is first loaded or rescanned
       if (!hasNotifiedSuccess) {
+        // Create a formatted summary of the profile data
+        const dataList = [
+          `Interests: ${profileData.interests.join(', ')}`,
+          `Location: ${profileData.location || 'Not available'}`,
+          `Age: ${profileData.age || 'Not available'}`,
+          `Occupation: ${profileData.occupation || 'Not available'}`
+        ].join('\n');
+        
         toast.success("Profile data updated", {
-          description: `Using ${profileData.interests.length} interests to enhance your decisions`,
+          description: (
+            <div className="space-y-1">
+              <p>Using {profileData.interests.length} interests to enhance your decisions</p>
+              <div className="text-xs max-h-32 overflow-y-auto whitespace-pre-line bg-gray-50 p-2 rounded">
+                {dataList}
+              </div>
+            </div>
+          ),
+          duration: 6000, // Show for longer since there's more content
         });
         setHasNotifiedSuccess(true);
       }
@@ -155,8 +172,37 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
         )}
         
         {profileData && (
-          <div className="text-sm text-green-600 mt-2">
-            Profile scanned successfully! Using data to enhance your decisions.
+          <div className="text-sm text-green-600 mt-2 flex items-center">
+            <span>Profile scanned successfully! Using data to enhance your decisions.</span>
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 ml-1">
+                  <Info className="h-4 w-4" />
+                </Button>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-80">
+                <div className="text-xs space-y-1">
+                  <p className="font-medium">Profile Data:</p>
+                  <div className="max-h-40 overflow-y-auto bg-gray-50 p-2 rounded whitespace-pre-line">
+                    {profileData.interests && (
+                      <p><span className="font-semibold">Interests:</span> {profileData.interests.join(', ')}</p>
+                    )}
+                    {profileData.location && (
+                      <p><span className="font-semibold">Location:</span> {profileData.location}</p>
+                    )}
+                    {profileData.age && (
+                      <p><span className="font-semibold">Age:</span> {profileData.age}</p>
+                    )}
+                    {profileData.occupation && (
+                      <p><span className="font-semibold">Occupation:</span> {profileData.occupation}</p>
+                    )}
+                    {profileData.recentActivity && (
+                      <p><span className="font-semibold">Recent Activity:</span> {profileData.recentActivity.join(', ')}</p>
+                    )}
+                  </div>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
           </div>
         )}
       </div>
