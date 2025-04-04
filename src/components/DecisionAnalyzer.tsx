@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown, HelpCircle, Brain, ArrowRight, ThumbsUp, ThumbsDown, Star, ChevronUp } from "lucide-react";
+import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown, HelpCircle, Brain, ArrowRight, ThumbsUp, ThumbsDown, Star, ChevronUp, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -52,6 +51,7 @@ const DecisionAnalyzer: React.FC = () => {
   const [needsClarification, setNeedsClarification] = useState(false);
   const [showAllOptions, setShowAllOptions] = useState(false);
   const [recommendedOptionIndex, setRecommendedOptionIndex] = useState<number | null>(null);
+  const [isAnalysingContext, setIsAnalysingContext] = useState(false);
   
   const { toast } = useToast();
   
@@ -65,6 +65,7 @@ const DecisionAnalyzer: React.FC = () => {
   
   const processDecisionTitle = async () => {
     if (decisionTitle.trim().length > 5) {
+      setIsAnalysingContext(true);
       try {
         const contextAnalysis = await analyzeDecisionContext(decisionTitle);
         setExtractedContext({
@@ -82,7 +83,11 @@ const DecisionAnalyzer: React.FC = () => {
             description: "Please provide more details about your decision",
             variant: "destructive"
           });
-          return false;
+          setIsAnalysingContext(false);
+          return {
+            isValid: false,
+            needsClarification: true
+          };
         }
         
         setNeedsMoreContext(contextAnalysis.confidence < 0.5);
@@ -92,6 +97,18 @@ const DecisionAnalyzer: React.FC = () => {
         if (contextAnalysis.suggestedQuestions && contextAnalysis.suggestedQuestions.length > 0) {
           setSuggestedQuestions(contextAnalysis.suggestedQuestions);
           setShowSuggestions(true);
+          setNeedsClarification(true);
+          setIsQuestionValid(false);
+          toast({
+            title: "More information needed",
+            description: "Please clarify your decision with more details",
+            variant: "default"
+          });
+          setIsAnalysingContext(false);
+          return {
+            isValid: false,
+            needsClarification: true
+          };
         } else {
           setSuggestedQuestions([]);
           setShowSuggestions(false);
@@ -107,7 +124,12 @@ const DecisionAnalyzer: React.FC = () => {
         }
         
         setIsQuestionValid(true);
-        return true;
+        setNeedsClarification(false);
+        setIsAnalysingContext(false);
+        return {
+          isValid: true,
+          needsClarification: false
+        };
       } catch (error) {
         console.error("Error analyzing decision:", error);
         toast({
@@ -115,7 +137,11 @@ const DecisionAnalyzer: React.FC = () => {
           description: "Could not analyze your decision context. Using default settings.",
           variant: "destructive"
         });
-        return false;
+        setIsAnalysingContext(false);
+        return {
+          isValid: false,
+          needsClarification: false
+        };
       }
     } else {
       toast({
@@ -123,7 +149,10 @@ const DecisionAnalyzer: React.FC = () => {
         description: "Please enter a more detailed decision question",
         variant: "destructive"
       });
-      return false;
+      return {
+        isValid: false,
+        needsClarification: false
+      };
     }
   };
   
@@ -138,8 +167,8 @@ const DecisionAnalyzer: React.FC = () => {
     }
     
     // Validate and process the decision title
-    const isValid = await processDecisionTitle();
-    if (!isValid) {
+    const validationResult = await processDecisionTitle();
+    if (!validationResult.isValid) {
       return;
     }
     
@@ -164,6 +193,7 @@ const DecisionAnalyzer: React.FC = () => {
         });
         setNeedsClarification(true);
         setIsQuestionValid(false);
+        setShowOptions(false);
         return;
       }
       
@@ -185,6 +215,7 @@ const DecisionAnalyzer: React.FC = () => {
         variant: "destructive"
       });
       setIsQuestionValid(false);
+      setShowOptions(false);
     } finally {
       setIsGenerating(false);
     }
@@ -269,10 +300,15 @@ const DecisionAnalyzer: React.FC = () => {
             <Button 
               onClick={generateOptions} 
               variant="outline" 
-              disabled={isGenerating || !decisionTitle.trim()} 
+              disabled={isGenerating || isAnalysingContext || !decisionTitle.trim()} 
               className="flex items-center gap-1 whitespace-nowrap"
             >
-              {isGenerating ? "Generating..." : (
+              {isGenerating || isAnalysingContext ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> 
+                  {isGenerating ? "Generating..." : "Analyzing..."}
+                </>
+              ) : (
                 <>
                   <Wand2 className="h-4 w-4" /> Analyse
                 </>
@@ -387,7 +423,7 @@ const DecisionAnalyzer: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {showOptions && (
+        {showOptions && !needsClarification && (
           <>
             <Separator className="my-2" />
 
@@ -514,7 +550,14 @@ const DecisionAnalyzer: React.FC = () => {
                 )}
 
                 <div className="text-xs max-h-32 overflow-y-auto whitespace-pre-line bg-gray-50 p-2 rounded">
-                  {analysis}
+                  {isAnalyzing ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" /> 
+                      Analyzing your selection...
+                    </div>
+                  ) : (
+                    analysis
+                  )}
                 </div>
               </motion.div>
             )}
