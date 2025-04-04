@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown, HelpCircle, Brain, ArrowRight, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown, HelpCircle, Brain, ArrowRight, ThumbsUp, ThumbsDown, Star, ChevronUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -50,6 +50,8 @@ const DecisionAnalyzer: React.FC = () => {
   const [aiAgreesWithChoice, setAiAgreesWithChoice] = useState<boolean | null>(null);
   const [isQuestionValid, setIsQuestionValid] = useState(true);
   const [needsClarification, setNeedsClarification] = useState(false);
+  const [showAllOptions, setShowAllOptions] = useState(false);
+  const [recommendedOptionIndex, setRecommendedOptionIndex] = useState<number | null>(null);
   
   const { toast } = useToast();
   
@@ -148,6 +150,8 @@ const DecisionAnalyzer: React.FC = () => {
     setSelectedOptionIndex(null);
     setAnalysis(null);
     setAiAgreesWithChoice(null);
+    setShowAllOptions(false);
+    setRecommendedOptionIndex(null);
     
     try {
       const generatedOptions = await generateOptionsWithLLM(decisionTitle);
@@ -231,6 +235,7 @@ const DecisionAnalyzer: React.FC = () => {
       
       optionScores.sort((a, b) => b.score - a.score);
       const aiRecommendation = optionScores[0].index;
+      setRecommendedOptionIndex(aiRecommendation);
       setAiAgreesWithChoice(index === aiRecommendation);
       
       toast({
@@ -392,20 +397,51 @@ const DecisionAnalyzer: React.FC = () => {
               </div>
             ) : options.length > 0 ? (
               <div className="space-y-4">
-                {/* Hide pros/cons columns until a decision is made */}
-                {selectedOptionIndex === null && (
-                  <div className="grid grid-cols-2 gap-3">
-                    {options.map((option, index) => (
+                {/* Display options grid - limited to top 2 initially */}
+                <div className="grid grid-cols-2 gap-3">
+                  {options
+                    .map((option, index) => ({ option, index }))
+                    .sort((a, b) => {
+                      const aProsConsRatio = a.option.pros.length - a.option.cons.length;
+                      const bProsConsRatio = b.option.pros.length - b.option.cons.length;
+                      return bProsConsRatio - aProsConsRatio;
+                    })
+                    .slice(0, showAllOptions ? options.length : Math.min(2, options.length))
+                    .map(({ option, index }) => (
                       <Button
                         key={index}
                         onClick={() => selectOption(index)}
                         disabled={isAnalyzing}
-                        variant="outline"
-                        className="flex items-center justify-center h-auto py-3 px-4 text-center"
+                        variant={selectedOptionIndex === index ? "default" : "outline"}
+                        className={`flex items-center justify-center h-auto py-3 px-4 text-center relative ${
+                          selectedOptionIndex === index ? "ring-2 ring-primary" : ""
+                        }`}
                       >
                         {option.name}
+                        {recommendedOptionIndex === index && selectedOptionIndex !== index && (
+                          <div className="absolute -top-2 -right-2">
+                            <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                          </div>
+                        )}
                       </Button>
                     ))}
+                </div>
+                
+                {/* Show more options button */}
+                {options.length > 2 && (
+                  <div className="flex justify-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowAllOptions(!showAllOptions)}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      {showAllOptions ? (
+                        <>Show fewer options <ChevronUp className="h-3 w-3" /></>
+                      ) : (
+                        <>Show more options ({options.length - 2} more) <ChevronDown className="h-3 w-3" /></>
+                      )}
+                    </Button>
                   </div>
                 )}
               </div>
