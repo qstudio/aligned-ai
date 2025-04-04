@@ -21,7 +21,13 @@ export interface OptionGenerationResponse {
   options: Option[];
 }
 
-// Add the missing DecisionDomainsMap interface
+// DecisionDomain interface to match the structure in decisionDomains.ts
+export interface DecisionDomain {
+  context: string;
+  examples: string[];
+}
+
+// Revised DecisionDomainsMap interface
 export interface DecisionDomainsMap {
-  [key: string]: string;
+  [key: string]: DecisionDomain;
 }
