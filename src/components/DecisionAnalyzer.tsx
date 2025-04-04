@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown, HelpCircle, Brain, ArrowRight } from "lucide-react";
+import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown, HelpCircle, Brain, ArrowRight, ThumbsUp, ThumbsDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -29,20 +29,7 @@ type ContextData = {
 
 const DecisionAnalyzer: React.FC = () => {
   const [decisionTitle, setDecisionTitle] = useState("");
-  const [options, setOptions] = useState<Option[]>([
-    {
-      name: "",
-      pros: [""],
-      cons: [""]
-    }, 
-    {
-      name: "",
-      pros: [""],
-      cons: [""]
-    }
-  ]);
-  const [currentPro, setCurrentPro] = useState("");
-  const [currentCon, setCurrentCon] = useState("");
+  const [options, setOptions] = useState<Option[]>([]);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   const [extractedContext, setExtractedContext] = useState<ContextData>({
     importance: "medium",
@@ -60,56 +47,9 @@ const DecisionAnalyzer: React.FC = () => {
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showProsConsForOption, setShowProsConsForOption] = useState<number | null>(null);
+  const [aiAgreesWithChoice, setAiAgreesWithChoice] = useState<boolean | null>(null);
   
   const { toast } = useToast();
-  
-  const updateOptionName = (index: number, name: string) => {
-    const newOptions = [...options];
-    newOptions[index].name = name;
-    setOptions(newOptions);
-  };
-  
-  const addPro = (index: number) => {
-    if (!currentPro.trim()) {
-      toast({
-        title: "Empty pro",
-        description: "Please enter a pro first",
-        variant: "destructive"
-      });
-      return;
-    }
-    const newOptions = [...options];
-    newOptions[index].pros.push(currentPro);
-    setOptions(newOptions);
-    setCurrentPro("");
-  };
-  
-  const addCon = (index: number) => {
-    if (!currentCon.trim()) {
-      toast({
-        title: "Empty con",
-        description: "Please enter a con first",
-        variant: "destructive"
-      });
-      return;
-    }
-    const newOptions = [...options];
-    newOptions[index].cons.push(currentCon);
-    setOptions(newOptions);
-    setCurrentCon("");
-  };
-  
-  const removePro = (optionIndex: number, proIndex: number) => {
-    const newOptions = [...options];
-    newOptions[optionIndex].pros.splice(proIndex, 1);
-    setOptions(newOptions);
-  };
-  
-  const removeCon = (optionIndex: number, conIndex: number) => {
-    const newOptions = [...options];
-    newOptions[optionIndex].cons.splice(conIndex, 1);
-    setOptions(newOptions);
-  };
   
   const toggleOptionOpen = (index: number) => {
     if (openOptionIndexes.includes(index)) {
@@ -163,6 +103,9 @@ const DecisionAnalyzer: React.FC = () => {
     setOptions([]);
     setOpenOptionIndexes([]);
     setShowOptions(true);
+    setSelectedOptionIndex(null);
+    setAnalysis(null);
+    setAiAgreesWithChoice(null);
     try {
       const generatedOptions = await generateOptionsWithLLM(decisionTitle);
       // Ensure we have exactly two options
@@ -171,8 +114,8 @@ const DecisionAnalyzer: React.FC = () => {
         // Add a second option if only one was generated
         limitedOptions.push({
           name: "Option B",
-          pros: ["Add pros here"],
-          cons: ["Add cons here"]
+          pros: ["AI couldn't generate enough pros"],
+          cons: ["AI couldn't generate enough cons"]
         });
       }
       setOptions(limitedOptions);
@@ -191,12 +134,12 @@ const DecisionAnalyzer: React.FC = () => {
       // Fallback to basic options
       setOptions([{
         name: "Option A",
-        pros: ["Add pros here"],
-        cons: ["Add cons here"]
+        pros: ["AI couldn't generate pros"],
+        cons: ["AI couldn't generate cons"]
       }, {
         name: "Option B",
-        pros: ["Add pros here"],
-        cons: ["Add cons here"]
+        pros: ["AI couldn't generate pros"],
+        cons: ["AI couldn't generate cons"]
       }]);
       setOpenOptionIndexes([0, 1]);
     } finally {
@@ -204,7 +147,7 @@ const DecisionAnalyzer: React.FC = () => {
     }
   };
   
-  const analyzeDecision = async () => {
+  const selectOption = async (index: number) => {
     if (!decisionTitle.trim()) {
       toast({
         title: "Missing information",
@@ -213,41 +156,42 @@ const DecisionAnalyzer: React.FC = () => {
       });
       return;
     }
-    const validOptions = options.filter(option => option.name.trim() && option.pros.some(pro => pro.trim()) && option.cons.some(con => con.trim()));
-    if (validOptions.length < 2) {
-      toast({
-        title: "Insufficient options",
-        description: "Please provide at least two options with names, pros, and cons",
-        variant: "destructive"
-      });
-      return;
-    }
-    await processDecisionTitle();
+
+    setSelectedOptionIndex(index);
+    setShowProsConsForOption(index);
     setIsAnalyzing(true);
     setAnalysis(null);
+
+    await processDecisionTitle();
+    
     const finalContext = {
       importance: needsMoreContext ? manualImportance : extractedContext.importance,
       timeframe: needsMoreContext ? manualTimeframe : extractedContext.timeframe
     };
+    
     try {
       const analysisResult = await analyzeDecisionWithLLM(decisionTitle, options, finalContext);
       setAnalysis(analysisResult);
       
-      // Find the recommended option
-      const optionScores = options.map((option, index) => {
+      // Determine if AI agrees with choice
+      // Simple heuristic: Check pros vs cons counts for each option
+      const optionScores = options.map((option, idx) => {
         const validPros = option.pros.filter(p => p.trim()).length;
         const validCons = option.cons.filter(c => c.trim()).length;
         return {
-          index,
+          index: idx,
           score: validPros - validCons,
           name: option.name
         };
       });
+      
       optionScores.sort((a, b) => b.score - a.score);
-      setSelectedOptionIndex(optionScores[0].index);
+      const aiRecommendation = optionScores[0].index;
+      setAiAgreesWithChoice(index === aiRecommendation);
+      
       toast({
-        title: "Analysis complete",
-        description: `Recommendation: ${optionScores[0].name}`
+        title: "Selection made",
+        description: `You chose: ${options[index].name}`
       });
     } catch (error) {
       console.error("Error analyzing decision:", error);
@@ -312,8 +256,6 @@ const DecisionAnalyzer: React.FC = () => {
             </div>
           )}
         </div>
-
-        {decisionTitle.length > 0}
 
         <Dialog open={needsMoreContext} onOpenChange={setNeedsMoreContext}>
           <DialogContent className="sm:max-w-md">
@@ -410,15 +352,10 @@ const DecisionAnalyzer: React.FC = () => {
                       key={optionIndex} 
                       open={openOptionIndexes.includes(optionIndex)} 
                       onOpenChange={() => toggleOptionOpen(optionIndex)} 
-                      className={`rounded-md border ${selectedOptionIndex === optionIndex ? 'border-decision-purple border-2' : ''}`}
+                      className="rounded-md border"
                     >
                       <div className="p-2 flex justify-between items-center">
-                        <Input 
-                          placeholder={`Option ${optionIndex + 1}`} 
-                          value={option.name} 
-                          onChange={e => updateOptionName(optionIndex, e.target.value)} 
-                          className="flex-1 mr-2 border-0 focus-visible:ring-0 h-8 text-sm" 
-                        />
+                        <div className="flex-1 font-medium text-sm px-2">{option.name}</div>
                         <CollapsibleTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-7 w-7">
                             <ChevronDown className={`h-3 w-3 transition-transform ${openOptionIndexes.includes(optionIndex) ? 'rotate-180' : ''}`} />
@@ -434,56 +371,12 @@ const DecisionAnalyzer: React.FC = () => {
                               <ScrollArea className="h-24 rounded border p-1">
                                 {option.pros.map((pro, proIndex) => (
                                   <div key={proIndex} className="flex items-center gap-1 py-1">
-                                    {proIndex === 0 && !pro.trim() ? (
-                                      <Input 
-                                        placeholder="Enter a pro" 
-                                        value={pro} 
-                                        onChange={e => {
-                                          const newOptions = [...options];
-                                          newOptions[optionIndex].pros[proIndex] = e.target.value;
-                                          setOptions(newOptions);
-                                        }} 
-                                        className="flex-1 h-7 text-xs" 
-                                      />
-                                    ) : pro.trim() ? (
-                                      <>
-                                        <div className="flex-1 text-xs flex items-center gap-1">
-                                          <span className="text-green-600">+</span> {pro}
-                                        </div>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => removePro(optionIndex, proIndex)} 
-                                          className="h-5 w-5"
-                                        >
-                                          <Trash2 className="h-2 w-2" />
-                                        </Button>
-                                      </>
-                                    ) : null}
+                                    <div className="flex-1 text-xs flex items-center gap-1">
+                                      <span className="text-green-600">+</span> {pro}
+                                    </div>
                                   </div>
                                 ))}
                               </ScrollArea>
-                              <div className="flex items-center gap-1">
-                                <Input 
-                                  placeholder="New pro" 
-                                  value={currentPro} 
-                                  onChange={e => setCurrentPro(e.target.value)} 
-                                  className="flex-1 h-7 text-xs" 
-                                  onKeyDown={e => {
-                                    if (e.key === "Enter") {
-                                      addPro(optionIndex);
-                                    }
-                                  }} 
-                                />
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => addPro(optionIndex)} 
-                                  className="h-7 text-xs whitespace-nowrap"
-                                >
-                                  Add
-                                </Button>
-                              </div>
                             </div>
 
                             <div className="space-y-1">
@@ -491,56 +384,12 @@ const DecisionAnalyzer: React.FC = () => {
                               <ScrollArea className="h-24 rounded border p-1">
                                 {option.cons.map((con, conIndex) => (
                                   <div key={conIndex} className="flex items-center gap-1 py-1">
-                                    {conIndex === 0 && !con.trim() ? (
-                                      <Input 
-                                        placeholder="Enter a con" 
-                                        value={con} 
-                                        onChange={e => {
-                                          const newOptions = [...options];
-                                          newOptions[optionIndex].cons[conIndex] = e.target.value;
-                                          setOptions(newOptions);
-                                        }} 
-                                        className="flex-1 h-7 text-xs" 
-                                      />
-                                    ) : con.trim() ? (
-                                      <>
-                                        <div className="flex-1 text-xs flex items-center gap-1">
-                                          <span className="text-red-600">-</span> {con}
-                                        </div>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => removeCon(optionIndex, conIndex)} 
-                                          className="h-5 w-5"
-                                        >
-                                          <Trash2 className="h-2 w-2" />
-                                        </Button>
-                                      </>
-                                    ) : null}
+                                    <div className="flex-1 text-xs flex items-center gap-1">
+                                      <span className="text-red-600">-</span> {con}
+                                    </div>
                                   </div>
                                 ))}
                               </ScrollArea>
-                              <div className="flex items-center gap-1">
-                                <Input 
-                                  placeholder="New con" 
-                                  value={currentCon} 
-                                  onChange={e => setCurrentCon(e.target.value)} 
-                                  className="flex-1 h-7 text-xs" 
-                                  onKeyDown={e => {
-                                    if (e.key === "Enter") {
-                                      addCon(optionIndex);
-                                    }
-                                  }} 
-                                />
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => addCon(optionIndex)} 
-                                  className="h-7 text-xs whitespace-nowrap"
-                                >
-                                  Add
-                                </Button>
-                              </div>
                             </div>
                           </div>
                         </div>
@@ -549,39 +398,45 @@ const DecisionAnalyzer: React.FC = () => {
                   ))}
                 </div>
               )}
-            </div>
 
-            <Button 
-              onClick={analyzeDecision} 
-              disabled={isAnalyzing || options.length < 2} 
-              className="bg-decision-purple hover:bg-decision-dark text-white font-medium w-full"
-            >
-              {isAnalyzing ? "Analyzing..." : "Analyze Decision"}
-            </Button>
+              {options.length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {options.map((option, index) => (
+                    <Button
+                      key={index}
+                      onClick={() => selectOption(index)}
+                      disabled={isAnalyzing}
+                      variant="outline"
+                      className={`flex items-center justify-center h-auto py-3 px-4 text-center ${selectedOptionIndex === index ? 'border-2 border-decision-purple' : ''}`}
+                    >
+                      {option.name}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
             
-            {analysis && (
+            {selectedOptionIndex !== null && analysis && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 transition={{ duration: 0.5 }} 
                 className="rounded-lg border p-3"
               >
-                <h3 className="font-semibold text-sm mb-2">Results</h3>
-                
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  {options.map((option, index) => (
-                    <Button
-                      key={index}
-                      variant={selectedOptionIndex === index ? "default" : "outline"}
-                      className={`flex justify-between items-center h-auto py-2 px-3 ${selectedOptionIndex === index ? 'bg-decision-purple hover:bg-decision-dark text-white' : ''}`}
-                      onClick={() => setShowProsConsForOption(showProsConsForOption === index ? null : index)}
-                    >
-                      <span className="text-sm font-medium">{option.name}</span>
-                      {selectedOptionIndex === index && <Check className="h-4 w-4 ml-2" />}
-                      <ArrowRight className={`h-4 w-4 ml-1 transition-transform ${showProsConsForOption === index ? 'rotate-90' : ''}`} />
-                    </Button>
-                  ))}
-                </div>
+                <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  You selected: {options[selectedOptionIndex].name}
+                  {aiAgreesWithChoice !== null && (
+                    aiAgreesWithChoice ? (
+                      <span className="flex items-center text-green-600">
+                        <ThumbsUp className="h-4 w-4 mr-1" /> AI agrees
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-amber-600">
+                        <ThumbsDown className="h-4 w-4 mr-1" /> AI recommends the other option
+                      </span>
+                    )
+                  )}
+                </h3>
                 
                 {showProsConsForOption !== null && (
                   <motion.div 
