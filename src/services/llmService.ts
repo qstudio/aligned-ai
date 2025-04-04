@@ -12,7 +12,7 @@ export { analyzeDecisionContext } from './analysis/contextAnalysis';
 export { generateOptionsWithLLM } from './analysis/optionGeneration';
 
 // Export decision analysis functionality
-export { analyzeDecisionWithLLM } from './analysis/decisionAnalysis';
+export { analyzeDecisionWithLLM, calculateRecommendedOption } from './analysis/decisionAnalysis';
 
 // Export Facebook integration functionality
 export { extractProfileData, isValidFacebookProfileUrl } from './facebook/profileExtractor';

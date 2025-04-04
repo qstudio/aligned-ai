@@ -55,6 +55,11 @@ export const generateOptionsWithLLM = async (
         cons: Array.isArray(option.cons) ? option.cons : ["Con 1", "Con 2", "Con 3"]
       }));
       
+      // Randomize the order of options so the first one isn't always highest-scored
+      if (parsed.options.length > 1) {
+        parsed.options = shuffleArray(parsed.options);
+      }
+      
     } catch (error) {
       console.error("Failed to parse Perplexity options response:", error);
       console.log("Attempted to parse:", jsonContent);
@@ -63,13 +68,13 @@ export const generateOptionsWithLLM = async (
       const fallbackOptions = attemptToExtractOptionsFromText(result);
       if (fallbackOptions.length > 0) {
         return {
-          options: fallbackOptions
+          options: shuffleArray(fallbackOptions) // Shuffle even the fallback options
         };
       }
       
       // Return default options if all parsing fails
       return {
-        options: [
+        options: shuffleArray([
           {
             name: "Option A",
             pros: ["Pro 1", "Pro 2", "Pro 3"],
@@ -80,7 +85,7 @@ export const generateOptionsWithLLM = async (
             pros: ["Pro 1", "Pro 2", "Pro 3"],
             cons: ["Con 1", "Con 2", "Con 3"]
           }
-        ]
+        ])
       };
     }
     
@@ -92,7 +97,7 @@ export const generateOptionsWithLLM = async (
     console.error("Error in generateOptionsWithLLM:", error);
     // Return default options in case of error
     return {
-      options: [
+      options: shuffleArray([
         {
           name: "Option A",
           pros: ["Pro 1", "Pro 2", "Pro 3"],
@@ -103,10 +108,20 @@ export const generateOptionsWithLLM = async (
           pros: ["Pro 1", "Pro 2", "Pro 3"],
           cons: ["Con 1", "Con 2", "Con 3"]
         }
-      ]
+      ])
     };
   }
 };
+
+// Utility function to shuffle an array (Fisher-Yates algorithm)
+function shuffleArray<T>(array: T[]): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 
 // Fallback function that tries to extract option information from free text
 const attemptToExtractOptionsFromText = (text: string) => {

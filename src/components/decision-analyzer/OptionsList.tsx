@@ -36,14 +36,8 @@ export const OptionsList: React.FC<OptionsListProps> = ({
       {/* Display options grid - limited to top 2 initially */}
       <div className="grid grid-cols-2 gap-3">
         {options
-          .map((option, index) => ({ option, index }))
-          .sort((a, b) => {
-            const aProsConsRatio = a.option.pros.length - a.option.cons.length;
-            const bProsConsRatio = b.option.pros.length - b.option.cons.length;
-            return bProsConsRatio - aProsConsRatio;
-          })
           .slice(0, showAllOptions ? options.length : Math.min(2, options.length))
-          .map(({ option, index }) => (
+          .map((option, index) => (
             <Button
               key={index}
               onClick={() => selectOption(index)}

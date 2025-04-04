@@ -42,23 +42,39 @@ export const analyzeDecisionWithLLM = async (
   } catch (error) {
     console.error("Error in analyzeDecisionWithLLM:", error);
     
-    // Calculate a simple score for each option as a fallback
+    // Calculate a weighted score for each option as a fallback
     const scoredOptions = options.map(option => {
+      // Count valid items (non-empty strings)
       const validPros = option.pros.filter(p => p.trim()).length;
       const validCons = option.cons.filter(c => c.trim()).length;
       
-      let proWeight = 1;
-      let conWeight = 1;
+      // Apply weighted scoring based on context
+      let proWeight = 1.0;
+      let conWeight = 1.0;
       
+      // Add importance weighting
       if (context.importance === "high") {
-        conWeight = 1.5;
+        conWeight = 1.5; // In high-importance decisions, cons matter more
       } else if (context.importance === "low") {
-        proWeight = 1.2;
+        proWeight = 1.2; // In low-importance decisions, pros matter slightly more
       }
+      
+      // Add timeframe weighting
+      if (context.timeframe === "long") {
+        conWeight *= 1.2; // Long-term decisions should weigh cons more heavily
+      } else if (context.timeframe === "short") {
+        proWeight *= 1.1; // Short-term decisions can slightly favor pros
+      }
+      
+      // Additional randomization factor (between 0.9 and 1.1) to avoid predictable ties
+      const randomFactor = 0.9 + Math.random() * 0.2;
+      
+      // Calculate weighted score
+      const score = (validPros * proWeight * randomFactor) - (validCons * conWeight);
       
       return {
         name: option.name,
-        score: (validPros * proWeight) - (validCons * conWeight)
+        score: score
       };
     });
     
@@ -80,4 +96,55 @@ export const analyzeDecisionWithLLM = async (
     
     return analysis;
   }
+};
+
+// Determines the best option based on a sophisticated analysis
+export const calculateRecommendedOption = (
+  options: {
+    name: string;
+    pros: string[];
+    cons: string[];
+  }[],
+  context: DecisionContext
+): number => {
+  if (options.length === 0) return -1;
+  
+  const scores = options.map((option, idx) => {
+    // Count valid items (non-empty strings)
+    const validPros = option.pros.filter(p => p.trim()).length;
+    const validCons = option.cons.filter(c => c.trim()).length;
+    
+    // Apply weighted scoring based on context
+    let proWeight = 1.0;
+    let conWeight = 1.0;
+    
+    // Add importance weighting
+    if (context.importance === "high") {
+      conWeight = 1.5; // In high-importance decisions, cons matter more
+    } else if (context.importance === "low") {
+      proWeight = 1.2; // In low-importance decisions, pros matter slightly more
+    }
+    
+    // Add timeframe weighting
+    if (context.timeframe === "long") {
+      conWeight *= 1.2; // Long-term decisions should weigh cons more heavily
+    } else if (context.timeframe === "short") {
+      proWeight *= 1.1; // Short-term decisions can slightly favor pros
+    }
+    
+    // Additional randomization factor (between 0.9 and 1.1) to avoid predictable ties
+    const randomFactor = 0.9 + Math.random() * 0.2;
+    
+    // Calculate weighted score with randomization factor
+    const score = (validPros * proWeight * randomFactor) - (validCons * conWeight);
+    
+    return {
+      index: idx,
+      score: score
+    };
+  });
+  
+  // Sort by score in descending order and get the highest-scoring option
+  scores.sort((a, b) => b.score - a.score);
+  return scores[0].index;
 };

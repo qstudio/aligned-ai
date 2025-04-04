@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -12,7 +11,8 @@ import { Option, ContextData } from "./types";
 import { 
   analyzeDecisionContext, 
   generateOptionsWithLLM, 
-  analyzeDecisionWithLLM 
+  analyzeDecisionWithLLM,
+  calculateRecommendedOption 
 } from "@/services/llmService";
 import { toast } from "sonner";
 import { FacebookProfileInput } from "../social-media/FacebookProfileInput";
@@ -46,12 +46,10 @@ const DecisionAnalyzer: React.FC = () => {
   const [isAnalysingContext, setIsAnalysingContext] = useState(false);
   const [betterPhrasing, setBetterPhrasing] = useState<string | undefined>(undefined);
   
-  // New state for FB profile integration
   const [profileData, setProfileData] = useState<FacebookProfileData | null>(null);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [experimentMode, setExperimentMode] = useState<"enabled" | "disabled" | "a-b">("disabled");
   
-  // Load experiment mode from localStorage
   useEffect(() => {
     const savedMode = localStorage.getItem("fb_experiment_mode");
     if (savedMode && ["enabled", "disabled", "a-b"].includes(savedMode)) {
@@ -59,22 +57,18 @@ const DecisionAnalyzer: React.FC = () => {
     }
   }, []);
   
-  // Save experiment mode to localStorage when it changes
   useEffect(() => {
     localStorage.setItem("fb_experiment_mode", experimentMode);
-  }, [experimentMode]);
+  }, []);
   
-  // Toggle profile settings visibility
   const toggleProfileSettings = () => {
     setShowProfileSettings(!showProfileSettings);
   };
   
-  // Handle profile data changes from the FacebookProfileInput component
   const handleProfileDataChange = (newProfileData: FacebookProfileData | null) => {
     setProfileData(newProfileData);
     
     if (newProfileData && !newProfileData.interests?.length) {
-      // If profile data was cleared or is empty
       toast.info("Profile data has been cleared");
     } else if (newProfileData) {
       toast.success("Profile data updated", {
@@ -100,12 +94,10 @@ const DecisionAnalyzer: React.FC = () => {
     }
   };
   
-  // Determine if profile data should be used for current operation
   const shouldUseProfileData = () => {
     if (experimentMode === "disabled") return false;
     if (experimentMode === "enabled") return !!profileData;
     
-    // For A/B mode, alternate between runs
     const useProfile = Math.random() >= 0.5;
     console.log(`A/B testing mode: ${useProfile ? "USING" : "NOT USING"} profile data this time`);
     return useProfile && !!profileData;
@@ -115,7 +107,6 @@ const DecisionAnalyzer: React.FC = () => {
     if (decisionTitle.trim().length > 5) {
       setIsAnalysingContext(true);
       try {
-        // Determine if we should use profile data
         const useProfileData = shouldUseProfileData();
         console.log("Using profile data:", useProfileData);
         
@@ -214,7 +205,6 @@ const DecisionAnalyzer: React.FC = () => {
     setRecommendedOptionIndex(null);
     
     try {
-      // Determine if we should use profile data
       const useProfileData = shouldUseProfileData();
       console.log("Generating options with profile data:", useProfileData);
       
@@ -233,6 +223,14 @@ const DecisionAnalyzer: React.FC = () => {
       
       setOptions(generatedOptions.options);
       setOpenOptionIndexes(Array.from({ length: generatedOptions.options.length }, (_, i) => i));
+      
+      const finalContext = {
+        importance: needsMoreContext ? manualImportance : extractedContext.importance,
+        timeframe: needsMoreContext ? manualTimeframe : extractedContext.timeframe
+      };
+      
+      const recommendedIndex = calculateRecommendedOption(generatedOptions.options, finalContext);
+      setRecommendedOptionIndex(recommendedIndex);
       
       setIsQuestionValid(true);
       toast.success(`Generated ${generatedOptions.options.length} options for your question`, {
@@ -271,7 +269,6 @@ const DecisionAnalyzer: React.FC = () => {
     };
     
     try {
-      // Determine if we should use profile data
       const useProfileData = shouldUseProfileData();
       console.log("Analyzing decision with profile data:", useProfileData);
       
@@ -284,20 +281,7 @@ const DecisionAnalyzer: React.FC = () => {
       
       setAnalysis(analysisResult);
       
-      const optionScores = options.map((option, idx) => {
-        const validPros = option.pros.filter(p => p.trim()).length;
-        const validCons = option.cons.filter(c => c.trim()).length;
-        return {
-          index: idx,
-          score: validPros - validCons,
-          name: option.name
-        };
-      });
-      
-      optionScores.sort((a, b) => b.score - a.score);
-      const aiRecommendation = optionScores[0].index;
-      setRecommendedOptionIndex(aiRecommendation);
-      setAiAgreesWithChoice(index === aiRecommendation);
+      setAiAgreesWithChoice(index === recommendedOptionIndex);
     } catch (error) {
       console.error("Error analyzing decision:", error);
       toast.error("Error analyzing your choice. Please try again.");
