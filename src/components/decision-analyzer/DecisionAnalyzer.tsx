@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -46,9 +45,9 @@ const DecisionAnalyzer: React.FC = () => {
   const [isAnalysingContext, setIsAnalysingContext] = useState(false);
   const [betterPhrasing, setBetterPhrasing] = useState<string | undefined>(undefined);
   
-  // New state for FB profile integration
+  // Facebook profile integration
   const [profileData, setProfileData] = useState<FacebookProfileData | null>(null);
-  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [profileUrl, setProfileUrl] = useState("");
   const [experimentMode, setExperimentMode] = useState<"enabled" | "disabled" | "a-b">("disabled");
   
   // Load experiment mode from localStorage
@@ -64,12 +63,7 @@ const DecisionAnalyzer: React.FC = () => {
     localStorage.setItem("fb_experiment_mode", experimentMode);
   }, [experimentMode]);
   
-  // Toggle profile settings visibility
-  const toggleProfileSettings = () => {
-    setShowProfileSettings(!showProfileSettings);
-  };
-  
-  // Handle profile data changes from the FacebookProfileInput component
+  // Handle profile data changes
   const handleProfileDataChange = (newProfileData: FacebookProfileData | null) => {
     setProfileData(newProfileData);
     
@@ -312,22 +306,25 @@ const DecisionAnalyzer: React.FC = () => {
         <DecisionInput
           decisionTitle={decisionTitle}
           setDecisionTitle={setDecisionTitle}
-          generateOptions={generateOptions}
-          isGenerating={isGenerating}
-          isAnalysingContext={isAnalysingContext}
-          needsClarification={needsClarification}
-          isQuestionValid={isQuestionValid}
           suggestedQuestions={suggestedQuestions}
-          showSuggestions={showSuggestions}
           betterPhrasing={betterPhrasing}
-          toggleProfileSettings={toggleProfileSettings}
+          importance={extractedContext.importance}
+          timeframe={extractedContext.timeframe}
+          confidence={extractedContext.confidence}
+          onAnalyze={generateOptions}
+          profileUrl={profileUrl}
+          setProfileUrl={setProfileUrl}
           experimentMode={experimentMode}
           setExperimentMode={setExperimentMode}
         />
         
-        {showProfileSettings && (
+        {experimentMode !== "disabled" && (
           <div className="mt-4">
-            <FacebookProfileInput onProfileDataChange={handleProfileDataChange} />
+            <FacebookProfileInput 
+              profileUrl={profileUrl}
+              setProfileUrl={setProfileUrl}
+              onProfileDataChange={handleProfileDataChange} 
+            />
           </div>
         )}
 

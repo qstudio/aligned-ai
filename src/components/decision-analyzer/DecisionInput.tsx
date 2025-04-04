@@ -82,8 +82,8 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
           
           {experimentMode !== "disabled" && (
             <FacebookProfileInput 
-              profileUrl={profileUrl} 
-              setProfileUrl={setProfileUrl} 
+              profileUrl={profileUrl}
+              setProfileUrl={setProfileUrl}
             />
           )}
         </CardContent>
