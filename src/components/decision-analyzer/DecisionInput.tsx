@@ -59,8 +59,7 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
             onAnalyze={onAnalyze}
           />
           
-          {/* Hide the context indicators as they don't seem to do anything */}
-          {false && (importance || timeframe) && (
+          {(importance || timeframe) && (
             <>
               <Separator />
               <ContextIndicators 
@@ -74,8 +73,7 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
         </CardContent>
       </Card>
       
-      {/* Set the experiment mode to disabled by default */}
-      <Card className="hidden">
+      <Card>
         <CardContent className="p-3">
           <ExperimentModeSelector 
             experimentMode={experimentMode}
@@ -84,8 +82,8 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
           
           {experimentMode !== "disabled" && (
             <FacebookProfileInput 
-              profileUrl={profileUrl}
-              setProfileUrl={setProfileUrl}
+              profileUrl={profileUrl} 
+              setProfileUrl={setProfileUrl} 
             />
           )}
         </CardContent>

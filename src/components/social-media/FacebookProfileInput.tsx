@@ -9,17 +9,13 @@ import { toast } from "sonner";
 import { useFacebookProfile } from "@/hooks/useFacebookProfile";
 
 export interface FacebookProfileInputProps {
-  profileUrl?: string;
-  setProfileUrl?: (url: string) => void;
-  onProfileDataChange?: (profileData: any | null) => void;
+  onProfileDataChange: (profileData: any | null) => void;
 }
 
 export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({ 
-  profileUrl: externalProfileUrl,
-  setProfileUrl: externalSetProfileUrl,
   onProfileDataChange 
 }) => {
-  const [profileUrl, setProfileUrl] = useState<string>(externalProfileUrl || "");
+  const [profileUrl, setProfileUrl] = useState<string>("");
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const [lastScannedUrl, setLastScannedUrl] = useState<string>("");
   const [hasNotifiedSuccess, setHasNotifiedSuccess] = useState<boolean>(false);
@@ -32,27 +28,17 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
     clearProfile 
   } = useFacebookProfile();
   
-  // Update internal state when external props change
-  useEffect(() => {
-    if (externalProfileUrl !== undefined) {
-      setProfileUrl(externalProfileUrl);
-    }
-  }, [externalProfileUrl]);
-  
   // Load saved preferences from localStorage
   useEffect(() => {
     const savedProfileUrl = localStorage.getItem("facebook_profile_url") || "";
     const savedIsEnabled = localStorage.getItem("facebook_profile_enabled") === "true";
     
-    if (externalProfileUrl === undefined) { // Only set from localStorage if no external control
-      setProfileUrl(savedProfileUrl);
-    }
+    setProfileUrl(savedProfileUrl);
     setIsEnabled(savedIsEnabled);
     
-    if (savedIsEnabled && (externalProfileUrl || savedProfileUrl)) {
-      const urlToUse = externalProfileUrl || savedProfileUrl;
-      setLastScannedUrl(urlToUse);
-      scanProfile(urlToUse);
+    if (savedIsEnabled && savedProfileUrl) {
+      setLastScannedUrl(savedProfileUrl);
+      scanProfile(savedProfileUrl);
     }
   }, []);
   
@@ -60,20 +46,12 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
   useEffect(() => {
     localStorage.setItem("facebook_profile_url", profileUrl);
     localStorage.setItem("facebook_profile_enabled", isEnabled.toString());
-    
-    // If external control is provided, update the parent
-    if (externalSetProfileUrl) {
-      externalSetProfileUrl(profileUrl);
-    }
-  }, [profileUrl, isEnabled, externalSetProfileUrl]);
+  }, [profileUrl, isEnabled]);
   
   // Notify parent component when profile data changes
   useEffect(() => {
     if (isEnabled && profileData) {
-      // Only call the callback if it exists
-      if (onProfileDataChange) {
-        onProfileDataChange(profileData);
-      }
+      onProfileDataChange(profileData);
       
       // Only show success toast when profile data is first loaded or rescanned
       if (!hasNotifiedSuccess) {
@@ -82,8 +60,7 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
         });
         setHasNotifiedSuccess(true);
       }
-    } else if (onProfileDataChange) {
-      // Only call the callback if it exists
+    } else {
       onProfileDataChange(null);
     }
   }, [profileData, isEnabled, onProfileDataChange]);
@@ -123,12 +100,6 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
     setHasNotifiedSuccess(false);
     localStorage.removeItem("facebook_profile_url");
     localStorage.removeItem("facebook_profile_enabled");
-    
-    // If external control is provided, update the parent
-    if (externalSetProfileUrl) {
-      externalSetProfileUrl("");
-    }
-    
     toast.success("Facebook profile integration has been reset");
   };
 
