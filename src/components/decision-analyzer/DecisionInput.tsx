@@ -37,6 +37,19 @@ interface DecisionInputProps {
   setExperimentMode: (mode: "enabled" | "disabled" | "a-b") => void;
 }
 
+// Array of random decision placeholders
+const placeholders = [
+  "Should I go for a walk or meet friends for a drink?",
+  "Should I eat pasta or rice for dinner tonight?",
+  "Should I take a vacation to the mountains or the beach?",
+  "Should I buy a new laptop now or wait for next year's model?",
+  "Should I learn guitar or piano as my new hobby?",
+  "Should I watch a comedy or thriller movie tonight?",
+  "Should I adopt a cat or a dog from the shelter?",
+  "Should I apply for a new job or ask for a promotion?",
+  "Should I make coffee at home or stop at a cafe on my way?"
+];
+
 export const DecisionInput: React.FC<DecisionInputProps> = ({
   decisionTitle,
   setDecisionTitle,
@@ -52,6 +65,14 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
   experimentMode,
   setExperimentMode
 }) => {
+  // State to track the current placeholder
+  const [currentPlaceholder, setCurrentPlaceholder] = useState("");
+  
+  // Set a random placeholder when the component mounts
+  useEffect(() => {
+    setCurrentPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
+  }, []);
+  
   const useBetterPhrasing = () => {
     if (betterPhrasing) {
       setDecisionTitle(betterPhrasing);
@@ -71,7 +92,7 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
       <div className="flex gap-2">
         <Input 
           id="decision" 
-          placeholder="It's raining outside and I need to go and feed my sheep - should I go now or later?" 
+          placeholder={currentPlaceholder}
           value={decisionTitle} 
           onChange={e => setDecisionTitle(e.target.value)} 
           onKeyDown={handleKeyDown}
