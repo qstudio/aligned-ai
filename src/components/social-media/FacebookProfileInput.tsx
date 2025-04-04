@@ -18,6 +18,7 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
   const [profileUrl, setProfileUrl] = useState<string>("");
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const [lastScannedUrl, setLastScannedUrl] = useState<string>("");
+  const [hasNotifiedSuccess, setHasNotifiedSuccess] = useState<boolean>(false);
   
   const { 
     profileData, 
@@ -51,6 +52,14 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
   useEffect(() => {
     if (isEnabled && profileData) {
       onProfileDataChange(profileData);
+      
+      // Only show success toast when profile data is first loaded or rescanned
+      if (!hasNotifiedSuccess) {
+        toast.success("Profile data updated", {
+          description: `Using ${profileData.interests.length} interests to enhance your decisions`,
+        });
+        setHasNotifiedSuccess(true);
+      }
     } else {
       onProfileDataChange(null);
     }
@@ -62,6 +71,8 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
       return;
     }
     
+    // Reset notification flag when scanning a new profile
+    setHasNotifiedSuccess(false);
     setLastScannedUrl(profileUrl);
     scanProfile(profileUrl);
   };
@@ -71,8 +82,14 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
     
     if (!enabled) {
       clearProfile();
+      setHasNotifiedSuccess(false);
+      toast.info("Facebook profile integration has been disabled");
     } else if (profileUrl && (!profileData || lastScannedUrl !== profileUrl)) {
+      setHasNotifiedSuccess(false);
       handleScanProfile();
+    } else if (enabled && profileData) {
+      // If re-enabling with existing data, don't show toast again
+      setHasNotifiedSuccess(true);
     }
   };
   
@@ -80,6 +97,7 @@ export const FacebookProfileInput: React.FC<FacebookProfileInputProps> = ({
     setProfileUrl("");
     setIsEnabled(false);
     clearProfile();
+    setHasNotifiedSuccess(false);
     localStorage.removeItem("facebook_profile_url");
     localStorage.removeItem("facebook_profile_enabled");
     toast.success("Facebook profile integration has been reset");
