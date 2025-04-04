@@ -2,13 +2,15 @@
 import { callPerplexityAPI } from '../api/perplexityService';
 import { buildContextAnalysisPrompt } from '../prompts/decisionPrompts';
 import { ContextAnalysisResponse } from '../types/decisionTypes';
+import { FacebookProfileData } from '../facebook/profileExtractor';
 
 // Analyze the decision context using Perplexity
 export const analyzeDecisionContext = async (
-  decisionTitle: string
+  decisionTitle: string,
+  profileData?: FacebookProfileData | null
 ): Promise<ContextAnalysisResponse> => {
   try {
-    const systemPrompt = buildContextAnalysisPrompt();
+    const systemPrompt = buildContextAnalysisPrompt(profileData);
     const userPrompt = `Analyze this decision question: "${decisionTitle}"`;
 
     const result = await callPerplexityAPI(systemPrompt, userPrompt);

@@ -15,6 +15,8 @@ import {
   analyzeDecisionWithLLM 
 } from "@/services/llmService";
 import { toast } from "sonner";
+import { FacebookProfileInput } from "../social-media/FacebookProfileInput";
+import { FacebookProfileData } from "@/services/facebook/profileExtractor";
 
 const DecisionAnalyzer: React.FC = () => {
   const [decisionTitle, setDecisionTitle] = useState("");
@@ -44,6 +46,43 @@ const DecisionAnalyzer: React.FC = () => {
   const [isAnalysingContext, setIsAnalysingContext] = useState(false);
   const [betterPhrasing, setBetterPhrasing] = useState<string | undefined>(undefined);
   
+  // New state for FB profile integration
+  const [profileData, setProfileData] = useState<FacebookProfileData | null>(null);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [experimentMode, setExperimentMode] = useState<"enabled" | "disabled" | "a-b">("disabled");
+  
+  // Load experiment mode from localStorage
+  useEffect(() => {
+    const savedMode = localStorage.getItem("fb_experiment_mode");
+    if (savedMode && ["enabled", "disabled", "a-b"].includes(savedMode)) {
+      setExperimentMode(savedMode as "enabled" | "disabled" | "a-b");
+    }
+  }, []);
+  
+  // Save experiment mode to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem("fb_experiment_mode", experimentMode);
+  }, [experimentMode]);
+  
+  // Toggle profile settings visibility
+  const toggleProfileSettings = () => {
+    setShowProfileSettings(!showProfileSettings);
+  };
+  
+  // Handle profile data changes from the FacebookProfileInput component
+  const handleProfileDataChange = (newProfileData: FacebookProfileData | null) => {
+    setProfileData(newProfileData);
+    
+    if (newProfileData && !newProfileData.interests?.length) {
+      // If profile data was cleared or is empty
+      toast.info("Profile data has been cleared");
+    } else if (newProfileData) {
+      toast.success("Profile data updated", {
+        description: `Using ${newProfileData.interests.length} interests to enhance your decisions`,
+      });
+    }
+  };
+  
   useEffect(() => {
     if (decisionTitle) {
       setNeedsClarification(false);
@@ -61,11 +100,30 @@ const DecisionAnalyzer: React.FC = () => {
     }
   };
   
+  // Determine if profile data should be used for current operation
+  const shouldUseProfileData = () => {
+    if (experimentMode === "disabled") return false;
+    if (experimentMode === "enabled") return !!profileData;
+    
+    // For A/B mode, alternate between runs
+    const useProfile = Math.random() >= 0.5;
+    console.log(`A/B testing mode: ${useProfile ? "USING" : "NOT USING"} profile data this time`);
+    return useProfile && !!profileData;
+  };
+  
   const processDecisionTitle = async () => {
     if (decisionTitle.trim().length > 5) {
       setIsAnalysingContext(true);
       try {
-        const contextAnalysis = await analyzeDecisionContext(decisionTitle);
+        // Determine if we should use profile data
+        const useProfileData = shouldUseProfileData();
+        console.log("Using profile data:", useProfileData);
+        
+        const contextAnalysis = await analyzeDecisionContext(
+          decisionTitle, 
+          useProfileData ? profileData : null
+        );
+        
         setExtractedContext({
           importance: contextAnalysis.importance,
           timeframe: contextAnalysis.timeframe,
@@ -156,7 +214,14 @@ const DecisionAnalyzer: React.FC = () => {
     setRecommendedOptionIndex(null);
     
     try {
-      const generatedOptions = await generateOptionsWithLLM(decisionTitle);
+      // Determine if we should use profile data
+      const useProfileData = shouldUseProfileData();
+      console.log("Generating options with profile data:", useProfileData);
+      
+      const generatedOptions = await generateOptionsWithLLM(
+        decisionTitle, 
+        useProfileData ? profileData : null
+      );
       
       if (!generatedOptions.options || generatedOptions.options.length === 0) {
         setNeedsClarification(true);
@@ -170,7 +235,10 @@ const DecisionAnalyzer: React.FC = () => {
       setOpenOptionIndexes(Array.from({ length: generatedOptions.options.length }, (_, i) => i));
       
       setIsQuestionValid(true);
-      toast.success(`Generated ${generatedOptions.options.length} options for your question`);
+      toast.success(`Generated ${generatedOptions.options.length} options for your question`, {
+        description: useProfileData && profileData ? 
+          "Enhanced with your profile information" : undefined
+      });
     } catch (error) {
       console.error("Error generating options:", error);
       setIsQuestionValid(false);
@@ -203,7 +271,17 @@ const DecisionAnalyzer: React.FC = () => {
     };
     
     try {
-      const analysisResult = await analyzeDecisionWithLLM(decisionTitle, options, finalContext);
+      // Determine if we should use profile data
+      const useProfileData = shouldUseProfileData();
+      console.log("Analyzing decision with profile data:", useProfileData);
+      
+      const analysisResult = await analyzeDecisionWithLLM(
+        decisionTitle, 
+        options, 
+        finalContext,
+        useProfileData ? profileData : null
+      );
+      
       setAnalysis(analysisResult);
       
       const optionScores = options.map((option, idx) => {
@@ -242,7 +320,16 @@ const DecisionAnalyzer: React.FC = () => {
           suggestedQuestions={suggestedQuestions}
           showSuggestions={showSuggestions}
           betterPhrasing={betterPhrasing}
+          toggleProfileSettings={toggleProfileSettings}
+          experimentMode={experimentMode}
+          setExperimentMode={setExperimentMode}
         />
+        
+        {showProfileSettings && (
+          <div className="mt-4">
+            <FacebookProfileInput onProfileDataChange={handleProfileDataChange} />
+          </div>
+        )}
 
         <ContextDialog
           open={needsMoreContext}

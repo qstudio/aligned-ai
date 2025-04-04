@@ -2,8 +2,24 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Wand2, AlertCircle, RefreshCw } from "lucide-react";
+import { 
+  Loader2, 
+  Wand2, 
+  AlertCircle, 
+  RefreshCw, 
+  Settings, 
+  Facebook
+} from "lucide-react";
 import { toast } from "sonner";
+import { 
+  DropdownMenu, 
+  DropdownMenuTrigger, 
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
+  DropdownMenuGroup
+} from "@/components/ui/dropdown-menu";
 
 interface DecisionInputProps {
   decisionTitle: string;
@@ -16,6 +32,9 @@ interface DecisionInputProps {
   suggestedQuestions: string[];
   showSuggestions: boolean;
   betterPhrasing?: string;
+  toggleProfileSettings: () => void;
+  experimentMode: "enabled" | "disabled" | "a-b";
+  setExperimentMode: (mode: "enabled" | "disabled" | "a-b") => void;
 }
 
 export const DecisionInput: React.FC<DecisionInputProps> = ({
@@ -29,6 +48,9 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
   suggestedQuestions,
   showSuggestions,
   betterPhrasing,
+  toggleProfileSettings,
+  experimentMode,
+  setExperimentMode
 }) => {
   const useBetterPhrasing = () => {
     if (betterPhrasing) {
@@ -55,6 +77,64 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
           onKeyDown={handleKeyDown}
           className={`flex-1 ${!isQuestionValid ? 'border-red-400' : ''}`}
         />
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" title="Profile settings">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Experiment Settings</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuGroup>
+              <DropdownMenuItem 
+                onClick={toggleProfileSettings}
+                className="cursor-pointer"
+              >
+                <Facebook className="h-4 w-4 mr-2 text-blue-600" />
+                <span>Facebook Profile Settings</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Facebook Integration</DropdownMenuLabel>
+            
+            <DropdownMenuGroup>
+              <DropdownMenuItem 
+                onClick={() => setExperimentMode("disabled")}
+                className={`cursor-pointer ${experimentMode === "disabled" ? "bg-accent" : ""}`}
+              >
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-2 ${experimentMode === "disabled" ? "bg-blue-600" : "border border-gray-400"}`}></div>
+                  <span>Disabled (default)</span>
+                </div>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem 
+                onClick={() => setExperimentMode("enabled")}
+                className={`cursor-pointer ${experimentMode === "enabled" ? "bg-accent" : ""}`}
+              >
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-2 ${experimentMode === "enabled" ? "bg-blue-600" : "border border-gray-400"}`}></div>
+                  <span>Always Enabled</span>
+                </div>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem 
+                onClick={() => setExperimentMode("a-b")}
+                className={`cursor-pointer ${experimentMode === "a-b" ? "bg-accent" : ""}`}
+              >
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-2 ${experimentMode === "a-b" ? "bg-blue-600" : "border border-gray-400"}`}></div>
+                  <span>A/B Testing (random)</span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
         <Button 
           onClick={generateOptions} 
           variant="outline" 
@@ -84,7 +164,7 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
               <Button 
                 variant="link" 
                 onClick={useBetterPhrasing} 
-                className="p-0 h-auto text-blue-600"
+                className="p-0 h-auto text-xs text-blue-600"
               >
                 Use this phrasing
               </Button>
@@ -117,6 +197,17 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
               )}
             </div>
           </div>
+        </div>
+      )}
+      
+      {experimentMode !== "disabled" && (
+        <div className="flex items-center text-xs text-muted-foreground mt-1 gap-1">
+          <Facebook className="h-3 w-3 text-blue-600" />
+          {experimentMode === "enabled" ? (
+            <span>Facebook profile integration is active</span>
+          ) : (
+            <span>Facebook profile A/B testing is active</span>
+          )}
         </div>
       )}
     </div>

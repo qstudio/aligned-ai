@@ -2,6 +2,7 @@
 import { callPerplexityAPI } from '../api/perplexityService';
 import { buildOptionGenerationPrompt } from '../prompts/decisionPrompts';
 import { OptionGenerationResponse } from '../types/decisionTypes';
+import { FacebookProfileData } from '../facebook/profileExtractor';
 
 // Function to extract JSON from a potentially markdown-formatted string
 const extractJsonFromResponse = (text: string): string => {
@@ -21,11 +22,14 @@ const extractJsonFromResponse = (text: string): string => {
 
 // Generate options using Perplexity
 export const generateOptionsWithLLM = async (
-  questionTitle: string
+  questionTitle: string,
+  profileData?: FacebookProfileData | null
 ): Promise<OptionGenerationResponse> => {
   try {
-    const systemPrompt = buildOptionGenerationPrompt();
+    const systemPrompt = buildOptionGenerationPrompt(profileData);
     const userPrompt = `Generate options for this question: "${questionTitle}"`;
+
+    console.log("Generating options with profile data:", !!profileData);
 
     const result = await callPerplexityAPI(systemPrompt, userPrompt);
     console.log("Raw LLM options response:", result);

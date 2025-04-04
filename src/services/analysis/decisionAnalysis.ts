@@ -2,6 +2,7 @@
 import { callPerplexityAPI } from '../api/perplexityService';
 import { buildAnalysisPrompt } from '../prompts/decisionPrompts';
 import { DecisionContext } from '../types/decisionTypes';
+import { FacebookProfileData } from '../facebook/profileExtractor';
 
 // Analyze decision with Perplexity
 export const analyzeDecisionWithLLM = async (
@@ -11,10 +12,11 @@ export const analyzeDecisionWithLLM = async (
     pros: string[];
     cons: string[];
   }[],
-  context: DecisionContext
+  context: DecisionContext,
+  profileData?: FacebookProfileData | null
 ): Promise<string> => {
   try {
-    const systemPrompt = buildAnalysisPrompt();
+    const systemPrompt = buildAnalysisPrompt(profileData);
 
     const userPrompt = `
       Decision: "${decisionTitle}"
@@ -29,9 +31,12 @@ export const analyzeDecisionWithLLM = async (
       Importance: ${context.importance}
       Timeframe: ${context.timeframe}
       
+      ${profileData ? "Please provide personalized analysis based on the user's profile information included in your system prompt." : ""}
+      
       Based on this information, what do you recommend?
     `;
 
+    console.log("Analyzing decision with profile data:", !!profileData);
     const result = await callPerplexityAPI(systemPrompt, userPrompt);
     return result;
   } catch (error) {

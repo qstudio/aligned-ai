@@ -1,8 +1,9 @@
 
 import { DECISION_DOMAINS } from '../constants/decisionDomains';
+import { FacebookProfileData } from '../facebook/profileExtractor';
 
 // Build enhanced system prompt with domain knowledge for context analysis
-export const buildContextAnalysisPrompt = () => {
+export const buildContextAnalysisPrompt = (profileData?: FacebookProfileData | null) => {
   let prompt = `
     You are an AI decision analysis assistant that helps people make better decisions. 
     Your job is to analyze a decision question and extract key information, even when the question is vague or lacks explicit options.
@@ -33,7 +34,23 @@ export const buildContextAnalysisPrompt = () => {
     3. Keywords suggesting importance and urgency
     4. The complexity and scope of the decision
     5. Making reasonable assumptions when information is lacking
-    
+  `;
+
+  // Include profile data if available
+  if (profileData) {
+    prompt += `\n
+    IMPORTANT: I have additional context about the person asking this question. Use this information to help evaluate the importance and timeframe of the decision:
+    - Interests: ${profileData.interests.join(', ')}
+    - Recent activities: ${profileData.recentActivity.join(', ')}
+    ${profileData.location ? `- Location: ${profileData.location}` : ''}
+    ${profileData.occupation ? `- Occupation: ${profileData.occupation}` : ''}
+    ${profileData.age ? `- Age: ${profileData.age}` : ''}
+
+    Consider how these interests and demographic factors might influence the decision's importance and timeframe.
+    `;
+  }
+  
+  prompt += `
     If you can work with the question but need more specifics, set "understood" to true but provide a lower confidence score and relevant "suggestedQuestions".
     If the question is extremely vague with no context clues, set "understood" to false and provide "suggestedQuestions".
     When possible, provide a "betterPhrasing" that would make the question clearer while preserving the original intent.
@@ -45,7 +62,7 @@ export const buildContextAnalysisPrompt = () => {
 };
 
 // Build enhanced system prompt for option generation
-export const buildOptionGenerationPrompt = () => {
+export const buildOptionGenerationPrompt = (profileData?: FacebookProfileData | null) => {
   let prompt = `
     You are an AI decision assistant specializing in generating realistic options for various decision domains.
     
@@ -60,7 +77,27 @@ export const buildOptionGenerationPrompt = () => {
     - EDUCATION: learning style, career goals, time commitment, cost, credibility, practical application
     - PERSONAL: values, long-term happiness, impact on relationships, lifestyle fit, location factors
     - HEALTH: medical evidence, personal preferences, side effects, lifestyle sustainability, expert recommendations
-    
+  `;
+
+  // Include profile data if available
+  if (profileData) {
+    prompt += `\n
+    IMPORTANT: I have specific information about the person making this decision. Use this to tailor your options to be more personalized:
+    - Interests: ${profileData.interests.join(', ')}
+    - Recent activities: ${profileData.recentActivity.join(', ')}
+    ${profileData.location ? `- Location: ${profileData.location}` : ''}
+    ${profileData.occupation ? `- Occupation: ${profileData.occupation}` : ''}
+    ${profileData.age ? `- Age: ${profileData.age}` : ''}
+
+    Generate options that:
+    1. Align with their expressed interests when relevant
+    2. Consider their recent activities as potential indicators of priorities
+    3. Account for location-specific factors if applicable
+    4. Take into consideration their occupation and approximate age group
+    `;
+  }
+  
+  prompt += `
     For each option, provide:
     1. A clear, descriptive name
     2. At least 3 realistic pros (benefits, advantages)
@@ -108,7 +145,7 @@ export const buildOptionGenerationPrompt = () => {
 };
 
 // Build enhanced system prompt for decision analysis
-export const buildAnalysisPrompt = () => {
+export const buildAnalysisPrompt = (profileData?: FacebookProfileData | null) => {
   let prompt = `
     You are an AI decision analyst specializing in helping people make better informed choices across various domains.
     
@@ -116,7 +153,27 @@ export const buildAnalysisPrompt = () => {
     ${Object.entries(DECISION_DOMAINS).map(([domain, info]) => 
       `- ${domain.toUpperCase()}: ${info.context}`
     ).join('\n')}
-    
+  `;
+
+  // Include profile data if available
+  if (profileData) {
+    prompt += `\n
+    IMPORTANT: I have specific information about the person making this decision. Consider these personal factors in your analysis:
+    - Interests: ${profileData.interests.join(', ')}
+    - Recent activities: ${profileData.recentActivity.join(', ')}
+    ${profileData.location ? `- Location: ${profileData.location}` : ''}
+    ${profileData.occupation ? `- Occupation: ${profileData.occupation}` : ''}
+    ${profileData.age ? `- Age: ${profileData.age}` : ''}
+
+    When providing your analysis:
+    1. Consider how their interests and recent activities might indicate their values and priorities
+    2. Factor in location-specific considerations if relevant to the decision
+    3. Take into account their occupation and potential life stage based on their age
+    4. Be specific about how your recommendation connects to their personal context
+    `;
+  }
+  
+  prompt += `
     When analyzing a decision:
     1. Consider the decision domain and its specific factors
     2. Weigh both short-term and long-term implications
