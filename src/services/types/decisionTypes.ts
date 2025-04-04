@@ -1,33 +1,36 @@
 
-// Context analysis response type
-export interface ContextAnalysisResponse {
-  understood: boolean;
-  importance: "low" | "medium" | "high";
-  timeframe: "short" | "medium" | "long";
-  confidence: number;
-  suggestedQuestions: string[];
-  betterPhrasing?: string;
-}
-
-// Option type
-export interface Option {
-  name: string;
-  pros: string[];
-  cons: string[];
-}
-
-// Options generation response
-export interface OptionGenerationResponse {
-  options: Option[];
-}
-
-// DecisionDomain interface to match the structure in decisionDomains.ts
-export interface DecisionDomain {
+// Types for decision domain knowledge base
+export interface DecisionDomainInfo {
   context: string;
   examples: string[];
 }
 
-// Revised DecisionDomainsMap interface
 export interface DecisionDomainsMap {
-  [key: string]: DecisionDomain;
+  [key: string]: DecisionDomainInfo;
+}
+
+// Type for the response from context analysis
+export interface ContextAnalysisResponse {
+  understood: boolean;
+  importance: 'low' | 'medium' | 'high';
+  timeframe: 'short' | 'medium' | 'long';
+  confidence: number;
+  suggestedQuestions?: string[];
+  betterPhrasing?: string;
+}
+
+// Type for option generation response
+export interface OptionGenerationResponse {
+  options: {
+    name: string;
+    pros: string[];
+    cons: string[];
+  }[];
+  rationale?: string;
+}
+
+// Type for decision context
+export interface DecisionContext {
+  importance: 'low' | 'medium' | 'high';
+  timeframe: 'short' | 'medium' | 'long';
 }

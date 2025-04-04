@@ -1,13 +1,25 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Settings, Brain, MessageSquare } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { 
+  Loader2, 
+  Wand2, 
+  AlertCircle, 
+  RefreshCw, 
+  Settings, 
+  Facebook
+} from "lucide-react";
+import { toast } from "sonner";
+import { 
+  DropdownMenu, 
+  DropdownMenuTrigger, 
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
+  DropdownMenuGroup
+} from "@/components/ui/dropdown-menu";
 
 interface DecisionInputProps {
   decisionTitle: string;
@@ -40,158 +52,164 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
   experimentMode,
   setExperimentMode
 }) => {
-  const handleInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !isGenerating && decisionTitle.length > 5) {
+  const useBetterPhrasing = () => {
+    if (betterPhrasing) {
+      setDecisionTitle(betterPhrasing);
+      toast.success("Using suggested phrasing");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && decisionTitle.trim() && !isGenerating && !isAnalysingContext) {
+      e.preventDefault();
       generateOptions();
     }
   };
 
-  const handleSuggestionClick = (question: string) => {
-    setDecisionTitle(question);
-  };
-
-  const handleBetterPhrasing = () => {
-    if (betterPhrasing) {
-      setDecisionTitle(betterPhrasing);
-    }
-  };
-
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2 items-center">
-        <Brain className="h-5 w-5 text-primary/80" />
-        <h3 className="text-lg font-medium">Decision Analyzer</h3>
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <Input 
+          id="decision" 
+          placeholder="It's raining outside and I need to go and feed my sheep - should I go now or later?" 
+          value={decisionTitle} 
+          onChange={e => setDecisionTitle(e.target.value)} 
+          onKeyDown={handleKeyDown}
+          className={`flex-1 ${!isQuestionValid ? 'border-red-400' : ''}`}
+        />
         
-        <div className="flex-1"></div>
-        
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" title="Profile settings">
               <Settings className="h-4 w-4" />
-              <span className="sr-only">Settings</span>
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80">
-            <div className="space-y-4">
-              <h4 className="font-medium">Settings</h4>
-              <Separator />
-              
-              <div className="space-y-2">
-                <h5 className="text-sm font-medium">Facebook Integration</h5>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={toggleProfileSettings} 
-                  className="w-full"
-                >
-                  Manage Profile Settings
-                </Button>
-              </div>
-              
-              <div className="space-y-2">
-                <h5 className="text-sm font-medium">Integration Mode</h5>
-                <RadioGroup 
-                  defaultValue={experimentMode}
-                  onValueChange={(value) => setExperimentMode(value as "enabled" | "disabled" | "a-b")}
-                  className="flex flex-col space-y-1"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="disabled" id="r1" />
-                    <Label htmlFor="r1">Disabled</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="enabled" id="r2" />
-                    <Label htmlFor="r2">Enabled (When Profile Available)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="a-b" id="r3" />
-                    <Label htmlFor="r3">A/B Testing Mode (Random)</Label>
-                  </div>
-                </RadioGroup>
-                <p className="text-xs text-muted-foreground mt-1">
-                  A/B testing mode randomly decides whether to use profile data for each decision.
-                </p>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-      
-      <div className="space-y-2">
-        <div className="relative">
-          <Input
-            className={`text-base pr-10 ${!isQuestionValid ? "border-red-400" : ""}`}
-            placeholder="What decision are you trying to make?"
-            value={decisionTitle}
-            onChange={(e) => setDecisionTitle(e.target.value)}
-            onKeyPress={handleInputKeyPress}
-          />
-          {isAnalysingContext && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
-            </div>
-          )}
-        </div>
-
-        {needsClarification && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-2 flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-red-800">
-              <p className="font-medium">Please clarify your question</p>
-              <p className="text-red-600">
-                I need more context to understand your decision. Try to phrase it as a clear choice or question.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {betterPhrasing && isQuestionValid && (
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-blue-800">
-                <span className="font-medium">Suggested rephrasing:</span> {betterPhrasing}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={handleBetterPhrasing}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Experiment Settings</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuGroup>
+              <DropdownMenuItem 
+                onClick={toggleProfileSettings}
+                className="cursor-pointer"
               >
-                Use This
+                <Facebook className="h-4 w-4 mr-2 text-blue-600" />
+                <span>Facebook Profile Settings</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Facebook Integration</DropdownMenuLabel>
+            
+            <DropdownMenuGroup>
+              <DropdownMenuItem 
+                onClick={() => setExperimentMode("disabled")}
+                className={`cursor-pointer ${experimentMode === "disabled" ? "bg-accent" : ""}`}
+              >
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-2 ${experimentMode === "disabled" ? "bg-blue-600" : "border border-gray-400"}`}></div>
+                  <span>Disabled (default)</span>
+                </div>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem 
+                onClick={() => setExperimentMode("enabled")}
+                className={`cursor-pointer ${experimentMode === "enabled" ? "bg-accent" : ""}`}
+              >
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-2 ${experimentMode === "enabled" ? "bg-blue-600" : "border border-gray-400"}`}></div>
+                  <span>Always Enabled</span>
+                </div>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem 
+                onClick={() => setExperimentMode("a-b")}
+                className={`cursor-pointer ${experimentMode === "a-b" ? "bg-accent" : ""}`}
+              >
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-2 ${experimentMode === "a-b" ? "bg-blue-600" : "border border-gray-400"}`}></div>
+                  <span>A/B Testing (random)</span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
+        <Button 
+          onClick={generateOptions} 
+          variant="outline" 
+          disabled={isGenerating || isAnalysingContext || !decisionTitle.trim()} 
+          className="flex items-center gap-1 whitespace-nowrap"
+        >
+          {isGenerating || isAnalysingContext ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> 
+              {isGenerating ? "Generating..." : "Analyzing..."}
+            </>
+          ) : (
+            <>
+              <Wand2 className="h-4 w-4" /> Analyse
+            </>
+          )}
+        </Button>
+      </div>
+
+      {betterPhrasing && (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-2 mt-2">
+          <div className="flex items-start gap-2">
+            <RefreshCw className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="text-sm flex-1">
+              <p className="font-medium text-blue-800">Suggested rephrasing:</p>
+              <p className="text-blue-700">{betterPhrasing}</p>
+              <Button 
+                variant="link" 
+                onClick={useBetterPhrasing} 
+                className="p-0 h-auto text-xs text-blue-600"
+              >
+                Use this phrasing
               </Button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {showSuggestions && suggestedQuestions.length > 0 && (
-          <div className="space-y-1 mt-2">
-            <div className="flex items-center gap-1">
-              <MessageSquare className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Suggested questions:</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {suggestedQuestions.map((question, index) => (
-                <Badge
-                  key={index}
-                  variant="secondary"
-                  className="cursor-pointer hover:bg-secondary/80 text-xs py-0"
-                  onClick={() => handleSuggestionClick(question)}
-                >
-                  {question}
-                </Badge>
-              ))}
+      {needsClarification && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-2 mt-2">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium text-red-800">Your question needs more details:</p>
+              <p className="text-red-700">Please clarify your decision by providing:</p>
+              <ul className="list-disc list-inside text-red-700 space-y-1 mt-1">
+                <li>What specific options are you considering?</li>
+                <li>What is the context of this decision?</li>
+                <li>What are your goals or constraints?</li>
+              </ul>
+              {showSuggestions && suggestedQuestions.length > 0 && (
+                <>
+                  <p className="font-medium text-red-800 mt-2">Consider answering:</p>
+                  <ul className="list-disc list-inside text-red-700 space-y-1">
+                    {suggestedQuestions.map((question, idx) => (
+                      <li key={idx}>{question}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
           </div>
-        )}
-      </div>
-
-      <Button
-        className="w-full"
-        onClick={generateOptions}
-        disabled={isGenerating || decisionTitle.length <= 5}
-      >
-        {isGenerating ? "Analyzing..." : "Analyze Decision"}
-      </Button>
+        </div>
+      )}
+      
+      {experimentMode !== "disabled" && (
+        <div className="flex items-center text-xs text-muted-foreground mt-1 gap-1">
+          <Facebook className="h-3 w-3 text-blue-600" />
+          {experimentMode === "enabled" ? (
+            <span>Facebook profile integration is active</span>
+          ) : (
+            <span>Facebook profile A/B testing is active</span>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,36 +1,83 @@
+
 import { callPerplexityAPI } from '../api/perplexityService';
-import { buildDecisionAnalysisPrompt } from '../prompts/decisionPrompts';
-import { Option } from '../types/decisionTypes';
+import { buildAnalysisPrompt } from '../prompts/decisionPrompts';
+import { DecisionContext } from '../types/decisionTypes';
 import { FacebookProfileData } from '../facebook/profileExtractor';
 
-// Analyze a decision with the selected option
+// Analyze decision with Perplexity
 export const analyzeDecisionWithLLM = async (
   decisionTitle: string,
-  options: Option[],
-  context: { importance: string; timeframe: string },
+  options: {
+    name: string;
+    pros: string[];
+    cons: string[];
+  }[],
+  context: DecisionContext,
   profileData?: FacebookProfileData | null
 ): Promise<string> => {
   try {
-    const systemPrompt = buildDecisionAnalysisPrompt(context, profileData);
-    
-    // Build a detailed user prompt with the decision and options
-    let userPrompt = `Decision: "${decisionTitle}"\n\nOptions:\n`;
-    
-    options.forEach((option, index) => {
-      userPrompt += `\nOption ${index + 1}: ${option.name}\n`;
-      userPrompt += `- Pros: ${option.pros.join(', ')}\n`;
-      userPrompt += `- Cons: ${option.cons.join(', ')}\n`;
-    });
-    
-    // Add selected option
-    // Note: In this implementation, we're analyzing all options. 
-    // In the actual UI, we would only analyze the selected one.
-    userPrompt += `\nPlease provide a thoughtful analysis of these options for this decision.`;
+    const systemPrompt = buildAnalysisPrompt(profileData);
 
+    const userPrompt = `
+      Decision: "${decisionTitle}"
+      
+      Options:
+      ${options.map((opt, idx) => `
+      Option ${idx + 1}: ${opt.name}
+      Pros: ${opt.pros.join(", ")}
+      Cons: ${opt.cons.join(", ")}
+      `).join("\n")}
+      
+      Importance: ${context.importance}
+      Timeframe: ${context.timeframe}
+      
+      ${profileData ? "Please provide personalized analysis based on the user's profile information included in your system prompt." : ""}
+      
+      Based on this information, what do you recommend?
+    `;
+
+    console.log("Analyzing decision with profile data:", !!profileData);
     const result = await callPerplexityAPI(systemPrompt, userPrompt);
     return result;
   } catch (error) {
     console.error("Error in analyzeDecisionWithLLM:", error);
-    return "I couldn't analyze this decision at the moment. Please try again later.";
+    
+    // Calculate a simple score for each option as a fallback
+    const scoredOptions = options.map(option => {
+      const validPros = option.pros.filter(p => p.trim()).length;
+      const validCons = option.cons.filter(c => c.trim()).length;
+      
+      let proWeight = 1;
+      let conWeight = 1;
+      
+      if (context.importance === "high") {
+        conWeight = 1.5;
+      } else if (context.importance === "low") {
+        proWeight = 1.2;
+      }
+      
+      return {
+        name: option.name,
+        score: (validPros * proWeight) - (validCons * conWeight)
+      };
+    });
+    
+    scoredOptions.sort((a, b) => b.score - a.score);
+    const bestOption = scoredOptions[0];
+    
+    // Fallback analysis
+    let analysis = `Recommendation: ${bestOption.name} appears to be the strongest choice based on your analysis.\n\n`;
+    
+    if (context.importance === "high") {
+      analysis += "Since this is a high-importance decision, consider gathering more information or consulting others before finalizing.\n";
+    }
+    
+    if (context.timeframe === "long") {
+      analysis += "For this long-term decision, weigh the long-term implications more heavily than short-term conveniences.\n";
+    } else if (context.timeframe === "short") {
+      analysis += "For this short-term decision, focus on immediate outcomes while being mindful of potential consequences.\n";
+    }
+    
+    return analysis;
   }
 };
