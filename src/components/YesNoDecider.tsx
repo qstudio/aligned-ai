@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Check, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -19,10 +18,27 @@ const YesNoDecider: React.FC = () => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [deciding, setDeciding] = useState(false);
+  const [hasValidQuestion, setHasValidQuestion] = useState(false);
   const { toast } = useToast();
 
+  const validateQuestion = (q: string) => {
+    // Simple validation - just check if there's text
+    return q.trim().length > 0;
+  };
+
+  const handleQuestionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newQuestion = e.target.value;
+    setQuestion(newQuestion);
+    
+    // Clear answer when changing question
+    if (answer) setAnswer(null);
+    
+    // Validate question but don't show outputs until user explicitly asks
+    setHasValidQuestion(validateQuestion(newQuestion));
+  };
+
   const getDecision = () => {
-    if (!question.trim()) {
+    if (!validateQuestion(question)) {
       toast({
         title: "Empty question",
         description: "Please enter a question first",
@@ -59,35 +75,44 @@ const YesNoDecider: React.FC = () => {
             id="question"
             placeholder="Should I have pizza for dinner?"
             value={question}
-            onChange={(e) => setQuestion(e.target.value)}
+            onChange={handleQuestionChange}
             className="min-h-[100px]"
           />
         </div>
         
-        <div className="h-24 w-full flex items-center justify-center bg-secondary rounded-lg overflow-hidden">
-          {deciding ? (
-            <div className="animate-pulse text-2xl font-bold text-decision-purple">Thinking...</div>
-          ) : answer ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="text-2xl font-bold text-decision-purple"
+        {hasValidQuestion && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            transition={{ duration: 0.3 }}
+            className="space-y-4"
+          >
+            <div className="h-24 w-full flex items-center justify-center bg-secondary rounded-lg overflow-hidden">
+              {deciding ? (
+                <div className="animate-pulse text-2xl font-bold text-decision-purple">Thinking...</div>
+              ) : answer ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="text-2xl font-bold text-decision-purple"
+                >
+                  {answer}
+                </motion.div>
+              ) : (
+                <div className="text-xl text-gray-400">Ask your question</div>
+              )}
+            </div>
+            
+            <Button 
+              onClick={getDecision}
+              disabled={deciding}
+              className="bg-decision-purple hover:bg-decision-dark text-white font-medium w-full"
             >
-              {answer}
-            </motion.div>
-          ) : (
-            <div className="text-xl text-gray-400">Ask your question</div>
-          )}
-        </div>
-        
-        <Button 
-          onClick={getDecision}
-          disabled={deciding}
-          className="bg-decision-purple hover:bg-decision-dark text-white font-medium"
-        >
-          Get Decision
-        </Button>
+              Get Decision
+            </Button>
+          </motion.div>
+        )}
       </CardContent>
     </Card>
   );
