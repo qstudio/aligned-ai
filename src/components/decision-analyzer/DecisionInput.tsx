@@ -7,8 +7,7 @@ import {
   Wand2, 
   AlertCircle, 
   RefreshCw, 
-  Settings, 
-  Facebook
+  Settings
 } from "lucide-react";
 import { toast } from "sonner";
 import { 
@@ -52,6 +51,9 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
   experimentMode,
   setExperimentMode
 }) => {
+  const [inputFocused, setInputFocused] = useState(false);
+  const placeholder = "It's raining outside and I need to go and feed my sheep - should I go now or later?";
+  
   const useBetterPhrasing = () => {
     if (betterPhrasing) {
       setDecisionTitle(betterPhrasing);
@@ -61,25 +63,46 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && decisionTitle.trim() && !isGenerating && !isAnalysingContext) {
-      e.preventDefault();
+      e.preventDefault(); // Prevent form submission and page reload
       generateOptions();
     }
   };
 
+  const handleInputFocus = () => {
+    setInputFocused(true);
+  };
+
+  const handleInputBlur = () => {
+    setInputFocused(false);
+  };
+
+  const handleSettingsClick = (e: React.MouseEvent) => {
+    // Prevent event from bubbling up and potentially causing page reload
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  // Prevent the default form submission behavior
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+  };
+
   return (
-    <div className="space-y-2">
+    <form onSubmit={handleSubmit} className="space-y-2">
       <div className="flex gap-2">
         <Input 
           id="decision" 
-          placeholder="It's raining outside and I need to go and feed my sheep - should I go now or later?" 
+          placeholder={inputFocused || decisionTitle ? "" : placeholder}
           value={decisionTitle} 
           onChange={e => setDecisionTitle(e.target.value)} 
           onKeyDown={handleKeyDown}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
           className={`flex-1 ${!isQuestionValid ? 'border-red-400' : ''}`}
         />
         
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild onClick={handleSettingsClick}>
             <Button variant="outline" size="icon" title="Profile settings">
               <Settings className="h-4 w-4" />
             </Button>
@@ -93,8 +116,7 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
                 onClick={toggleProfileSettings}
                 className="cursor-pointer"
               >
-                <Facebook className="h-4 w-4 mr-2 text-blue-600" />
-                <span>Facebook Profile Settings</span>
+                <span>Profile Settings</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             
@@ -136,10 +158,14 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
         </DropdownMenu>
         
         <Button 
-          onClick={generateOptions} 
+          onClick={(e) => {
+            e.preventDefault(); // Prevent form submission
+            generateOptions();
+          }} 
           variant="outline" 
           disabled={isGenerating || isAnalysingContext || !decisionTitle.trim()} 
           className="flex items-center gap-1 whitespace-nowrap"
+          type="button"
         >
           {isGenerating || isAnalysingContext ? (
             <>
@@ -201,15 +227,10 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
       )}
       
       {experimentMode !== "disabled" && (
-        <div className="flex items-center text-xs text-muted-foreground mt-1 gap-1">
-          <Facebook className="h-3 w-3 text-blue-600" />
-          {experimentMode === "enabled" ? (
-            <span>Facebook profile integration is active</span>
-          ) : (
-            <span>Facebook profile A/B testing is active</span>
-          )}
+        <div className="flex items-center text-xs text-muted-foreground mt-1">
+          <span>Facebook profile integration is {experimentMode === "enabled" ? "active" : "in A/B testing"}</span>
         </div>
       )}
-    </div>
+    </form>
   );
 };
