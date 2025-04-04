@@ -51,9 +51,18 @@ const DecisionAnalyzer: React.FC = () => {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
   const {
     toast
   } = useToast();
+
+  useEffect(() => {
+    if (decisionTitle.trim().length >= 10) {
+      setShowOptions(true);
+    } else {
+      setShowOptions(false);
+    }
+  }, [decisionTitle]);
 
   const addOption = () => {
     const newOption = {
@@ -439,8 +448,19 @@ const DecisionAnalyzer: React.FC = () => {
         <div className="space-y-2">
           
           <div className="flex gap-2">
-            <Input id="decision" placeholder="e.g., Which job offer should I accept?" value={decisionTitle} onChange={e => setDecisionTitle(e.target.value)} className="flex-1" />
-            <Button onClick={generateOptions} variant="outline" disabled={isGenerating} className="flex items-center gap-1">
+            <Input 
+              id="decision" 
+              placeholder="e.g., Which job offer should I accept?" 
+              value={decisionTitle} 
+              onChange={e => setDecisionTitle(e.target.value)} 
+              className="flex-1" 
+            />
+            <Button 
+              onClick={generateOptions} 
+              variant="outline" 
+              disabled={isGenerating || !showOptions} 
+              className="flex items-center gap-1"
+            >
               {isGenerating ? "Generating..." : <>
                   <Wand2 className="h-4 w-4" /> Generate
                 </>}
@@ -540,130 +560,134 @@ const DecisionAnalyzer: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        <Separator className="my-2" />
+        {showOptions && (
+          <>
+            <Separator className="my-2" />
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <Label>Your Options</Label>
-            {options.length < 5 && <Button variant="outline" size="sm" onClick={addOption} className="flex items-center gap-1">
-                <Plus className="h-4 w-4" /> Add Option
-              </Button>}
-          </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label>Your Options</Label>
+                {options.length < 5 && <Button variant="outline" size="sm" onClick={addOption} className="flex items-center gap-1">
+                    <Plus className="h-4 w-4" /> Add Option
+                  </Button>}
+              </div>
 
-          {isGenerating ? <div className="py-8 text-center text-muted-foreground">
-              Generating options based on your decision...
-            </div> : options.length === 0 ? <div className="py-8 text-center text-muted-foreground">
-              Click the "Generate" button to automatically create options based on your decision.
-            </div> : <div className="space-y-4 max-h-96 overflow-y-auto p-1">
-              {options.map((option, optionIndex) => <Collapsible key={optionIndex} open={openOptionIndexes.includes(optionIndex)} onOpenChange={() => toggleOptionOpen(optionIndex)} className={`rounded-md border ${selectedOptionIndex === optionIndex ? 'border-decision-purple border-2' : ''}`}>
-                  <div className="p-3 flex justify-between items-center">
-                    <Input placeholder={`Option ${optionIndex + 1}`} value={option.name} onChange={e => updateOptionName(optionIndex, e.target.value)} className="flex-1 mr-2 border-0 focus-visible:ring-0" />
-                    <div className="flex items-center gap-1">
-                      {options.length > 2 && <Button variant="ghost" size="icon" onClick={e => {
-                  e.stopPropagation();
-                  removeOption(optionIndex);
-                }} className="h-8 w-8 flex-none">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>}
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <ChevronDown className={`h-4 w-4 transition-transform ${openOptionIndexes.includes(optionIndex) ? 'rotate-180' : ''}`} />
-                        </Button>
-                      </CollapsibleTrigger>
-                    </div>
-                  </div>
-                  
-                  <CollapsibleContent>
-                    <div className="p-3 pt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-green-600">Pros</Label>
-                          <ScrollArea className="h-32 rounded border p-2">
-                            {option.pros.map((pro, proIndex) => <div key={proIndex} className="flex items-center gap-2 py-1">
-                                {proIndex === 0 && !pro.trim() ? <Input placeholder="Enter a pro" value={pro} onChange={e => {
-                          const newOptions = [...options];
-                          newOptions[optionIndex].pros[proIndex] = e.target.value;
-                          setOptions(newOptions);
-                        }} className="flex-1" /> : pro.trim() ? <>
-                                    <div className="flex-1 text-sm flex items-center gap-1">
-                                      <span className="text-green-600">+</span> {pro}
-                                    </div>
-                                    <Button variant="ghost" size="icon" onClick={() => removePro(optionIndex, proIndex)} className="h-6 w-6">
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </> : null}
-                              </div>)}
-                          </ScrollArea>
-                          <div className="flex items-center gap-2">
-                            <Input placeholder="New pro" value={currentPro} onChange={e => setCurrentPro(e.target.value)} className="flex-1" onKeyDown={e => {
-                        if (e.key === "Enter") {
-                          addPro(optionIndex);
-                        }
-                      }} />
-                            <Button variant="outline" size="sm" onClick={() => addPro(optionIndex)} className="whitespace-nowrap">
-                              Add
+              {isGenerating ? <div className="py-8 text-center text-muted-foreground">
+                  Generating options based on your decision...
+                </div> : options.length === 0 ? <div className="py-8 text-center text-muted-foreground">
+                  Click the "Generate" button to automatically create options based on your decision.
+                </div> : <div className="space-y-4 max-h-96 overflow-y-auto p-1">
+                  {options.map((option, optionIndex) => <Collapsible key={optionIndex} open={openOptionIndexes.includes(optionIndex)} onOpenChange={() => toggleOptionOpen(optionIndex)} className={`rounded-md border ${selectedOptionIndex === optionIndex ? 'border-decision-purple border-2' : ''}`}>
+                      <div className="p-3 flex justify-between items-center">
+                        <Input placeholder={`Option ${optionIndex + 1}`} value={option.name} onChange={e => updateOptionName(optionIndex, e.target.value)} className="flex-1 mr-2 border-0 focus-visible:ring-0" />
+                        <div className="flex items-center gap-1">
+                          {options.length > 2 && <Button variant="ghost" size="icon" onClick={e => {
+                      e.stopPropagation();
+                      removeOption(optionIndex);
+                    }} className="h-8 w-8 flex-none">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>}
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <ChevronDown className={`h-4 w-4 transition-transform ${openOptionIndexes.includes(optionIndex) ? 'rotate-180' : ''}`} />
                             </Button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-red-600">Cons</Label>
-                          <ScrollArea className="h-32 rounded border p-2">
-                            {option.cons.map((con, conIndex) => <div key={conIndex} className="flex items-center gap-2 py-1">
-                                {conIndex === 0 && !con.trim() ? <Input placeholder="Enter a con" value={con} onChange={e => {
-                          const newOptions = [...options];
-                          newOptions[optionIndex].cons[conIndex] = e.target.value;
-                          setOptions(newOptions);
-                        }} className="flex-1" /> : con.trim() ? <>
-                                    <div className="flex-1 text-sm flex items-center gap-1">
-                                      <span className="text-red-600">-</span> {con}
-                                    </div>
-                                    <Button variant="ghost" size="icon" onClick={() => removeCon(optionIndex, conIndex)} className="h-6 w-6">
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </> : null}
-                              </div>)}
-                          </ScrollArea>
-                          <div className="flex items-center gap-2">
-                            <Input placeholder="New con" value={currentCon} onChange={e => setCurrentCon(e.target.value)} className="flex-1" onKeyDown={e => {
-                        if (e.key === "Enter") {
-                          addCon(optionIndex);
-                        }
-                      }} />
-                            <Button variant="outline" size="sm" onClick={() => addCon(optionIndex)} className="whitespace-nowrap">
-                              Add
-                            </Button>
-                          </div>
+                          </CollapsibleTrigger>
                         </div>
                       </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>)}
-            </div>}
-        </div>
+                      
+                      <CollapsibleContent>
+                        <div className="p-3 pt-0">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-green-600">Pros</Label>
+                              <ScrollArea className="h-32 rounded border p-2">
+                                {option.pros.map((pro, proIndex) => <div key={proIndex} className="flex items-center gap-2 py-1">
+                                    {proIndex === 0 && !pro.trim() ? <Input placeholder="Enter a pro" value={pro} onChange={e => {
+                              const newOptions = [...options];
+                              newOptions[optionIndex].pros[proIndex] = e.target.value;
+                              setOptions(newOptions);
+                            }} className="flex-1" /> : pro.trim() ? <>
+                                        <div className="flex-1 text-sm flex items-center gap-1">
+                                          <span className="text-green-600">+</span> {pro}
+                                        </div>
+                                        <Button variant="ghost" size="icon" onClick={() => removePro(optionIndex, proIndex)} className="h-6 w-6">
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </> : null}
+                                  </div>)}
+                              </ScrollArea>
+                              <div className="flex items-center gap-2">
+                                <Input placeholder="New pro" value={currentPro} onChange={e => setCurrentPro(e.target.value)} className="flex-1" onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              addPro(optionIndex);
+                            }
+                          }} />
+                                <Button variant="outline" size="sm" onClick={() => addPro(optionIndex)} className="whitespace-nowrap">
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
 
-        <Button onClick={analyzeDecision} disabled={isAnalyzing || options.length < 2} className="bg-decision-purple hover:bg-decision-dark text-white font-medium mt-4">
-          {isAnalyzing ? "Analyzing..." : "Analyze Decision"}
-        </Button>
-        
-        {analysis && <motion.div initial={{
-        opacity: 0,
-        y: 20
-      }} animate={{
-        opacity: 1,
-        y: 0
-      }} transition={{
-        duration: 0.5
-      }} className="mt-4 p-4 bg-secondary rounded-lg">
-            <h3 className="font-semibold mb-2">Analysis Result</h3>
-            <div className="whitespace-pre-line text-sm">
-              {analysis}
+                            <div className="space-y-2">
+                              <Label className="text-red-600">Cons</Label>
+                              <ScrollArea className="h-32 rounded border p-2">
+                                {option.cons.map((con, conIndex) => <div key={conIndex} className="flex items-center gap-2 py-1">
+                                    {conIndex === 0 && !con.trim() ? <Input placeholder="Enter a con" value={con} onChange={e => {
+                              const newOptions = [...options];
+                              newOptions[optionIndex].cons[conIndex] = e.target.value;
+                              setOptions(newOptions);
+                            }} className="flex-1" /> : con.trim() ? <>
+                                        <div className="flex-1 text-sm flex items-center gap-1">
+                                          <span className="text-red-600">-</span> {con}
+                                        </div>
+                                        <Button variant="ghost" size="icon" onClick={() => removeCon(optionIndex, conIndex)} className="h-6 w-6">
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </> : null}
+                                  </div>)}
+                              </ScrollArea>
+                              <div className="flex items-center gap-2">
+                                <Input placeholder="New con" value={currentCon} onChange={e => setCurrentCon(e.target.value)} className="flex-1" onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              addCon(optionIndex);
+                            }
+                          }} />
+                                <Button variant="outline" size="sm" onClick={() => addCon(optionIndex)} className="whitespace-nowrap">
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>)}
+                </div>}
             </div>
-            {selectedOptionIndex !== null && <div className="mt-4 flex items-center text-decision-purple">
-                <Check className="h-5 w-5 mr-2" />
-                <span className="font-medium">Recommended: {options[selectedOptionIndex].name}</span>
-              </div>}
-          </motion.div>}
+
+            <Button onClick={analyzeDecision} disabled={isAnalyzing || options.length < 2} className="bg-decision-purple hover:bg-decision-dark text-white font-medium mt-4">
+              {isAnalyzing ? "Analyzing..." : "Analyze Decision"}
+            </Button>
+            
+            {analysis && <motion.div initial={{
+            opacity: 0,
+            y: 20
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} transition={{
+            duration: 0.5
+          }} className="mt-4 p-4 bg-secondary rounded-lg">
+                <h3 className="font-semibold mb-2">Analysis Result</h3>
+                <div className="whitespace-pre-line text-sm">
+                  {analysis}
+                </div>
+                {selectedOptionIndex !== null && <div className="mt-4 flex items-center text-decision-purple">
+                    <Check className="h-5 w-5 mr-2" />
+                    <span className="font-medium">Recommended: {options[selectedOptionIndex].name}</span>
+                  </div>}
+              </motion.div>}
+          </>
+        )}
       </CardContent>
     </Card>;
 };
