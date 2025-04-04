@@ -56,14 +56,6 @@ const DecisionAnalyzer: React.FC = () => {
     toast
   } = useToast();
 
-  useEffect(() => {
-    if (decisionTitle.trim().length >= 10) {
-      setShowOptions(true);
-    } else {
-      setShowOptions(false);
-    }
-  }, [decisionTitle]);
-
   const addOption = () => {
     const newOption = {
       name: "",
@@ -196,6 +188,7 @@ const DecisionAnalyzer: React.FC = () => {
     setIsGenerating(true);
     setOptions([]);
     setOpenOptionIndexes([]);
+    setShowOptions(true);
     setTimeout(() => {
       const generatedOptions = generateSampleOptions(decisionTitle);
       setOptions(generatedOptions);
@@ -458,7 +451,7 @@ const DecisionAnalyzer: React.FC = () => {
             <Button 
               onClick={generateOptions} 
               variant="outline" 
-              disabled={isGenerating || !showOptions} 
+              disabled={isGenerating || !decisionTitle.trim()} 
               className="flex items-center gap-1"
             >
               {isGenerating ? "Generating..." : <>
