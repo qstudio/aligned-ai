@@ -1,9 +1,9 @@
 
 import { useState, useCallback, useEffect } from "react";
-import { extractProfileData } from "@/services/facebook/profileExtractor";
+import { extractProfileData, FacebookProfileData } from "@/services/facebook/profileExtractor";
 
 export const useFacebookProfile = () => {
-  const [profileData, setProfileData] = useState<any | null>(null);
+  const [profileData, setProfileData] = useState<FacebookProfileData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   

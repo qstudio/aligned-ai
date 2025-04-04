@@ -1,197 +1,167 @@
 
-import { DECISION_DOMAINS } from '../constants/decisionDomains';
-import { FacebookProfileData } from '../facebook/profileExtractor';
+import { FacebookProfileData } from "../facebook/profileExtractor";
 
-// Build enhanced system prompt with domain knowledge for context analysis
-export const buildContextAnalysisPrompt = (profileData?: FacebookProfileData | null) => {
-  let prompt = `
-    You are an AI decision analysis assistant that helps people make better decisions. 
-    Your job is to analyze a decision question and extract key information, even when the question is vague or lacks explicit options.
+// Build a prompt for analyzing the decision context
+export const buildContextAnalysisPrompt = (profileData?: FacebookProfileData | null): string => {
+  let basePrompt = `
+You are a decision analysis expert. You help people make better decisions by analyzing their decision questions.
+
+Your task is to analyze the decision context from the user's question and extract key information.
+
+Return your analysis in the following JSON format:
+{
+  "understood": boolean, // Whether you understood the decision (true/false)
+  "importance": "low" | "medium" | "high", // Estimated importance of the decision
+  "timeframe": "short" | "medium" | "long", // Estimated timeframe for the decision
+  "confidence": number, // Your confidence in your analysis (0.0-1.0)
+  "suggestedQuestions": string[], // 1-3 questions to clarify the decision if needed
+  "betterPhrasing": string // Optional improved phrasing of the decision question
+}
+
+The "understood" field should be false if the question is unclear, not a decision, or otherwise invalid.
+The "confidence" field should reflect how confident you are in your analysis (higher is more confident).
+Keep "suggestedQuestions" relevant and helpful for clarifying the decision context.
+Only provide "betterPhrasing" if you can meaningfully improve the question's clarity.
+`;
+
+  // If Facebook profile data is available, add it to the prompt
+  if (profileData && profileData.interests.length > 0) {
+    basePrompt += `\nAdditional context about the person making the decision:`;
     
-    Common decision domains include:
-    ${Object.entries(DECISION_DOMAINS).map(([domain, info]) => 
-      `- ${domain.toUpperCase()}: ${info.context}`
-    ).join('\n')}
-    
-    Here are examples of good and vague decision questions for different domains:
-    ${Object.entries(DECISION_DOMAINS).map(([domain, info]) => 
-      `${domain.toUpperCase()} EXAMPLES:\n${info.examples.map(ex => `- "${ex}"`).join('\n')}`
-    ).join('\n\n')}
-    
-    You must return your analysis as valid JSON with the following structure:
-    {
-      "understood": boolean (true if you can work with this question, even if vague),
-      "importance": "low" or "medium" or "high" (how important this decision appears to be),
-      "timeframe": "short" or "medium" or "long" (the time horizon for this decision),
-      "confidence": number between 0.1 and 0.9 (how confident you are in your analysis),
-      "suggestedQuestions": array of strings (if the decision needs clarification),
-      "betterPhrasing": string (optional better phrasing for unclear decisions)
+    if (profileData.interests.length > 0) {
+      basePrompt += `\nInterests: ${profileData.interests.join(", ")}`;
     }
     
-    Base your analysis on:
-    1. The implied domain of the decision (career, financial, personal, etc.)
-    2. Explicit or implied context in the question
-    3. Keywords suggesting importance and urgency
-    4. The complexity and scope of the decision
-    5. Making reasonable assumptions when information is lacking
-  `;
-
-  // Include profile data if available
-  if (profileData) {
-    prompt += `\n
-    IMPORTANT: I have additional context about the person asking this question. Use this information to help evaluate the importance and timeframe of the decision:
-    - Interests: ${profileData.interests.join(', ')}
-    - Recent activities: ${profileData.recentActivity.join(', ')}
-    ${profileData.location ? `- Location: ${profileData.location}` : ''}
-    ${profileData.occupation ? `- Occupation: ${profileData.occupation}` : ''}
-    ${profileData.age ? `- Age: ${profileData.age}` : ''}
-
-    Consider how these interests and demographic factors might influence the decision's importance and timeframe.
-    `;
-  }
-  
-  prompt += `
-    If you can work with the question but need more specifics, set "understood" to true but provide a lower confidence score and relevant "suggestedQuestions".
-    If the question is extremely vague with no context clues, set "understood" to false and provide "suggestedQuestions".
-    When possible, provide a "betterPhrasing" that would make the question clearer while preserving the original intent.
+    if (profileData.location) {
+      basePrompt += `\nLocation: ${profileData.location}`;
+    }
     
-    Be generous in your understanding - most decision questions can be worked with even if they lack details.
-  `;
-  
-  return prompt;
+    if (profileData.bio) {
+      basePrompt += `\nBio: ${profileData.bio}`;
+    }
+    
+    if (profileData.education && profileData.education.length > 0) {
+      basePrompt += `\nEducation: ${profileData.education.join(", ")}`;
+    }
+    
+    if (profileData.work && profileData.work.length > 0) {
+      basePrompt += `\nWork: ${profileData.work.join(", ")}`;
+    }
+    
+    basePrompt += `\nUse this information to better understand the person's context, but do not directly mention it in your analysis.`;
+  }
+
+  return basePrompt;
 };
 
-// Build enhanced system prompt for option generation
-export const buildOptionGenerationPrompt = (profileData?: FacebookProfileData | null) => {
-  let prompt = `
-    You are an AI decision assistant specializing in generating realistic options for various decision domains.
-    
-    Common decision domains include:
-    ${Object.entries(DECISION_DOMAINS).map(([domain, info]) => 
-      `- ${domain.toUpperCase()}: ${info.context}`
-    ).join('\n')}
-    
-    For each decision domain, you should consider different factors:
-    - CAREER: skills, interests, growth potential, work-life balance, compensation, location
-    - FINANCIAL: risk tolerance, time horizon, liquidity needs, expected returns, tax implications
-    - EDUCATION: learning style, career goals, time commitment, cost, credibility, practical application
-    - PERSONAL: values, long-term happiness, impact on relationships, lifestyle fit, location factors
-    - HEALTH: medical evidence, personal preferences, side effects, lifestyle sustainability, expert recommendations
-  `;
+// Build a prompt for generating options
+export const buildOptionGenerationPrompt = (profileData?: FacebookProfileData | null): string => {
+  let basePrompt = `
+You are a decision analysis expert who helps people explore options for their decisions.
 
-  // Include profile data if available
-  if (profileData) {
-    prompt += `\n
-    IMPORTANT: I have specific information about the person making this decision. Use this to tailor your options to be more personalized:
-    - Interests: ${profileData.interests.join(', ')}
-    - Recent activities: ${profileData.recentActivity.join(', ')}
-    ${profileData.location ? `- Location: ${profileData.location}` : ''}
-    ${profileData.occupation ? `- Occupation: ${profileData.occupation}` : ''}
-    ${profileData.age ? `- Age: ${profileData.age}` : ''}
+Your task is to generate a comprehensive list of realistic options for the user's decision question.
 
-    Generate options that:
-    1. Align with their expressed interests when relevant
-    2. Consider their recent activities as potential indicators of priorities
-    3. Account for location-specific factors if applicable
-    4. Take into consideration their occupation and approximate age group
-    `;
+For each option, provide:
+1. A clear, concise name
+2. At least 2-3 pros (advantages)
+3. At least 2-3 cons (disadvantages)
+
+Return your analysis as valid JSON in this format:
+{
+  "options": [
+    {
+      "name": "Option name",
+      "pros": ["Pro 1", "Pro 2", "Pro 3"],
+      "cons": ["Con 1", "Con 2", "Con 3"]
+    },
+    ...
+  ]
+}
+
+Generate between 3-5 realistic and distinct options.
+Ensure that options represent significantly different approaches.
+Make options realistic and practical given the decision context.
+`;
+
+  // If Facebook profile data is available, add it to the prompt
+  if (profileData && profileData.interests.length > 0) {
+    basePrompt += `\nAdditional context about the person making the decision:`;
+    
+    if (profileData.interests.length > 0) {
+      basePrompt += `\nInterests: ${profileData.interests.join(", ")}`;
+    }
+    
+    if (profileData.location) {
+      basePrompt += `\nLocation: ${profileData.location}`;
+    }
+    
+    if (profileData.bio) {
+      basePrompt += `\nBio: ${profileData.bio}`;
+    }
+    
+    if (profileData.education && profileData.education.length > 0) {
+      basePrompt += `\nEducation: ${profileData.education.join(", ")}`;
+    }
+    
+    if (profileData.work && profileData.work.length > 0) {
+      basePrompt += `\nWork: ${profileData.work.join(", ")}`;
+    }
+    
+    basePrompt += `\nUse this information to generate personalized options that may align with their interests and background, but do not directly mention it in your analysis.`;
   }
-  
-  prompt += `
-    For each option, provide:
-    1. A clear, descriptive name
-    2. At least 3 realistic pros (benefits, advantages)
-    3. At least 3 realistic cons (drawbacks, disadvantages)
-    
-    IMPORTANT: You MUST return your response as valid parseable JSON with the following structure and no markdown formatting:
-    {
-      "options": [
-        {
-          "name": "Option name",
-          "pros": ["Pro 1", "Pro 2", "Pro 3", ...],
-          "cons": ["Con 1", "Con 2", "Con 3", ...]
-        },
-        ...
-      ],
-      "rationale": "Brief explanation of your reasoning"
-    }
-    
-    Here is an example of valid JSON output:
-    {
-      "options": [
-        {
-          "name": "Stay at current job",
-          "pros": ["Stable income", "Familiar environment", "Good benefits"],
-          "cons": ["Limited growth", "Long commute", "Repetitive tasks"]
-        },
-        {
-          "name": "Accept new job offer",
-          "pros": ["Higher salary", "Better location", "New challenges"],
-          "cons": ["Unknown company culture", "Less job security", "Learning curve"]
-        }
-      ],
-      "rationale": "These options represent the main paths for this career decision."
-    }
-    
-    Provide 2-4 realistic options with at least 3 pros and 3 cons for each option.
-    If the question is unclear, use your best judgment to infer the most likely options being considered.
-    It is better to provide reasonable options based on assumptions than to return an empty response.
-    
-    DO NOT include any explanations, markdown formatting, or other text outside the JSON structure.
-    Just return the raw JSON object that can be parsed directly.
-  `;
-  
-  return prompt;
+
+  return basePrompt;
 };
 
-// Build enhanced system prompt for decision analysis
-export const buildAnalysisPrompt = (profileData?: FacebookProfileData | null) => {
-  let prompt = `
-    You are an AI decision analyst specializing in helping people make better informed choices across various domains.
+// Build a prompt for analyzing the decision
+export const buildDecisionAnalysisPrompt = (
+  context: { importance: string; timeframe: string },
+  profileData?: FacebookProfileData | null
+): string => {
+  let basePrompt = `
+You are a decision analysis expert. You help people make better decisions by analyzing their options.
+
+The decision has:
+- Importance: ${context.importance} (low/medium/high)
+- Timeframe: ${context.timeframe} (short/medium/long)
+
+Your task is to analyze all options and provide a thoughtful, balanced perspective on the selected option.
+
+Consider the following in your analysis:
+- How well the option aligns with the decision's importance and timeframe
+- The strength of the pros relative to the cons
+- Any hidden factors or considerations
+- Alternative framings of the problem
+
+Provide a thoughtful analysis in 3-4 paragraphs. Be balanced and nuanced.
+`;
+
+  // If Facebook profile data is available, add it to the prompt
+  if (profileData && profileData.interests.length > 0) {
+    basePrompt += `\nAdditional context about the person making the decision:`;
     
-    Common decision domains include:
-    ${Object.entries(DECISION_DOMAINS).map(([domain, info]) => 
-      `- ${domain.toUpperCase()}: ${info.context}`
-    ).join('\n')}
-  `;
-
-  // Include profile data if available
-  if (profileData) {
-    prompt += `\n
-    IMPORTANT: I have specific information about the person making this decision. Consider these personal factors in your analysis:
-    - Interests: ${profileData.interests.join(', ')}
-    - Recent activities: ${profileData.recentActivity.join(', ')}
-    ${profileData.location ? `- Location: ${profileData.location}` : ''}
-    ${profileData.occupation ? `- Occupation: ${profileData.occupation}` : ''}
-    ${profileData.age ? `- Age: ${profileData.age}` : ''}
-
-    When providing your analysis:
-    1. Consider how their interests and recent activities might indicate their values and priorities
-    2. Factor in location-specific considerations if relevant to the decision
-    3. Take into account their occupation and potential life stage based on their age
-    4. Be specific about how your recommendation connects to their personal context
-    `;
+    if (profileData.interests.length > 0) {
+      basePrompt += `\nInterests: ${profileData.interests.join(", ")}`;
+    }
+    
+    if (profileData.location) {
+      basePrompt += `\nLocation: ${profileData.location}`;
+    }
+    
+    if (profileData.bio) {
+      basePrompt += `\nBio: ${profileData.bio}`;
+    }
+    
+    if (profileData.education && profileData.education.length > 0) {
+      basePrompt += `\nEducation: ${profileData.education.join(", ")}`;
+    }
+    
+    if (profileData.work && profileData.work.length > 0) {
+      basePrompt += `\nWork: ${profileData.work.join(", ")}`;
+    }
+    
+    basePrompt += `\nUse this information to provide personalized analysis that takes their context into account, but do not directly mention their profile data in your analysis.`;
   }
-  
-  prompt += `
-    When analyzing a decision:
-    1. Consider the decision domain and its specific factors
-    2. Weigh both short-term and long-term implications
-    3. Balance emotional and rational considerations
-    4. Account for the decision's importance and time sensitivity
-    5. Respect individual values and preferences
-    
-    Your analysis should:
-    - Begin with "Recommendation:" followed by your suggested option
-    - Explain your reasoning clearly and concisely
-    - Point out key factors that influenced your recommendation
-    - For high-importance decisions, suggest gathering more information or consulting others
-    - For long-term decisions, emphasize considering future implications
-    - Conclude with 1-2 practical next steps the person could take
-    
-    Your response should be in plain text, not JSON.
-    Be balanced, nuanced, and recognizable as thoughtful human-like reasoning.
-  `;
-  
-  return prompt;
+
+  return basePrompt;
 };

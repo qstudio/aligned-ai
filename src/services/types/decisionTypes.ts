@@ -1,36 +1,22 @@
 
-// Types for decision domain knowledge base
-export interface DecisionDomainInfo {
-  context: string;
-  examples: string[];
-}
-
-export interface DecisionDomainsMap {
-  [key: string]: DecisionDomainInfo;
-}
-
-// Type for the response from context analysis
+// Context analysis response type
 export interface ContextAnalysisResponse {
   understood: boolean;
-  importance: 'low' | 'medium' | 'high';
-  timeframe: 'short' | 'medium' | 'long';
+  importance: "low" | "medium" | "high";
+  timeframe: "short" | "medium" | "long";
   confidence: number;
-  suggestedQuestions?: string[];
+  suggestedQuestions: string[];
   betterPhrasing?: string;
 }
 
-// Type for option generation response
-export interface OptionGenerationResponse {
-  options: {
-    name: string;
-    pros: string[];
-    cons: string[];
-  }[];
-  rationale?: string;
+// Option type
+export interface Option {
+  name: string;
+  pros: string[];
+  cons: string[];
 }
 
-// Type for decision context
-export interface DecisionContext {
-  importance: 'low' | 'medium' | 'high';
-  timeframe: 'short' | 'medium' | 'long';
+// Options generation response
+export interface OptionGenerationResponse {
+  options: Option[];
 }
