@@ -8,7 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown, HelpCircle, Brain, ArrowRight, ThumbsUp, ThumbsDown, Star, ChevronUp, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -53,8 +52,6 @@ const DecisionAnalyzer: React.FC = () => {
   const [recommendedOptionIndex, setRecommendedOptionIndex] = useState<number | null>(null);
   const [isAnalysingContext, setIsAnalysingContext] = useState(false);
   
-  const { toast } = useToast();
-  
   const toggleOptionOpen = (index: number) => {
     if (openOptionIndexes.includes(index)) {
       setOpenOptionIndexes(openOptionIndexes.filter(i => i !== index));
@@ -78,11 +75,6 @@ const DecisionAnalyzer: React.FC = () => {
         if (!contextAnalysis.understood) {
           setNeedsClarification(true);
           setIsQuestionValid(false);
-          toast({
-            title: "Question needs clarification",
-            description: "Please provide more details about your decision",
-            variant: "destructive"
-          });
           setIsAnalysingContext(false);
           return {
             isValid: false,
@@ -99,11 +91,6 @@ const DecisionAnalyzer: React.FC = () => {
           setShowSuggestions(true);
           setNeedsClarification(true);
           setIsQuestionValid(false);
-          toast({
-            title: "More information needed",
-            description: "Please clarify your decision with more details",
-            variant: "default"
-          });
           setIsAnalysingContext(false);
           return {
             isValid: false,
@@ -116,11 +103,7 @@ const DecisionAnalyzer: React.FC = () => {
         
         // If there's a better phrasing suggestion
         if (contextAnalysis.betterPhrasing) {
-          toast({
-            title: "Suggestion",
-            description: `Consider rephrasing: "${contextAnalysis.betterPhrasing}"`,
-            variant: "default"
-          });
+          // Note: Toast removed as requested
         }
         
         setIsQuestionValid(true);
@@ -132,11 +115,6 @@ const DecisionAnalyzer: React.FC = () => {
         };
       } catch (error) {
         console.error("Error analyzing decision:", error);
-        toast({
-          title: "Analysis error",
-          description: "Could not analyze your decision context. Using default settings.",
-          variant: "destructive"
-        });
         setIsAnalysingContext(false);
         return {
           isValid: false,
@@ -144,11 +122,6 @@ const DecisionAnalyzer: React.FC = () => {
         };
       }
     } else {
-      toast({
-        title: "Input too short",
-        description: "Please enter a more detailed decision question",
-        variant: "destructive"
-      });
       return {
         isValid: false,
         needsClarification: false
@@ -158,11 +131,6 @@ const DecisionAnalyzer: React.FC = () => {
   
   const generateOptions = async () => {
     if (!decisionTitle.trim()) {
-      toast({
-        title: "Missing information",
-        description: "Please enter a decision title before generating options",
-        variant: "destructive"
-      });
       return;
     }
     
@@ -186,11 +154,6 @@ const DecisionAnalyzer: React.FC = () => {
       const generatedOptions = await generateOptionsWithLLM(decisionTitle);
       
       if (!generatedOptions.options || generatedOptions.options.length === 0) {
-        toast({
-          title: "Cannot generate options",
-          description: "Please clarify your decision question with more details",
-          variant: "destructive"
-        });
         setNeedsClarification(true);
         setIsQuestionValid(false);
         setShowOptions(false);
@@ -201,19 +164,9 @@ const DecisionAnalyzer: React.FC = () => {
       setOptions(generatedOptions.options);
       setOpenOptionIndexes(Array.from({ length: generatedOptions.options.length }, (_, i) => i));
       
-      toast({
-        title: "Options generated",
-        description: "AI has created options based on your decision"
-      });
-      
       setIsQuestionValid(true);
     } catch (error) {
       console.error("Error generating options:", error);
-      toast({
-        title: "Generation error",
-        description: "Could not generate options. Please try again or clarify your question.",
-        variant: "destructive"
-      });
       setIsQuestionValid(false);
       setShowOptions(false);
     } finally {
@@ -223,11 +176,6 @@ const DecisionAnalyzer: React.FC = () => {
   
   const selectOption = async (index: number) => {
     if (!decisionTitle.trim()) {
-      toast({
-        title: "Missing information",
-        description: "Please enter a decision title",
-        variant: "destructive"
-      });
       return;
     }
 
@@ -268,18 +216,8 @@ const DecisionAnalyzer: React.FC = () => {
       const aiRecommendation = optionScores[0].index;
       setRecommendedOptionIndex(aiRecommendation);
       setAiAgreesWithChoice(index === aiRecommendation);
-      
-      toast({
-        title: "Selection made",
-        description: `You chose: ${options[index].name}`
-      });
     } catch (error) {
       console.error("Error analyzing decision:", error);
-      toast({
-        title: "Analysis error",
-        description: "Could not analyze your decision. Please try again.",
-        variant: "destructive"
-      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -316,22 +254,6 @@ const DecisionAnalyzer: React.FC = () => {
             </Button>
           </div>
 
-          {showSuggestions && suggestedQuestions.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mt-2">
-              <div className="flex items-start gap-2">
-                <HelpCircle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                <div className="text-sm">
-                  <p className="font-medium text-amber-800">Need more clarity:</p>
-                  <ul className="list-disc list-inside text-amber-700 space-y-1">
-                    {suggestedQuestions.map((question, idx) => (
-                      <li key={idx}>{question}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-          
           {needsClarification && (
             <div className="bg-red-50 border border-red-200 rounded-md p-2 mt-2">
               <div className="flex items-start gap-2">
@@ -344,6 +266,16 @@ const DecisionAnalyzer: React.FC = () => {
                     <li>What is the context of this decision?</li>
                     <li>What are your goals or constraints?</li>
                   </ul>
+                  {showSuggestions && suggestedQuestions.length > 0 && (
+                    <>
+                      <p className="font-medium text-red-800 mt-2">Consider answering:</p>
+                      <ul className="list-disc list-inside text-red-700 space-y-1">
+                        {suggestedQuestions.map((question, idx) => (
+                          <li key={idx}>{question}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
