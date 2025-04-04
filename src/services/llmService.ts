@@ -1,4 +1,3 @@
-
 import { useToast } from "@/components/ui/use-toast";
 
 // This is a type for context analysis responses from the LLM
@@ -338,14 +337,8 @@ export const analyzeDecisionWithLLM = async (
   scoredOptions.sort((a, b) => b.score - a.score);
   const bestOption = scoredOptions[0];
   
-  let analysis = `Based on your analysis of "${decisionTitle}" (${context.importance} importance, ${context.timeframe}-term decision):\n\n`;
-  analysis += "Option comparison:\n";
-  
-  scoredOptions.forEach((option, index) => {
-    analysis += `${index + 1}. ${option.name}: ${option.proCount} pros, ${option.conCount} cons\n`;
-  });
-  
-  analysis += `\nRecommendation: ${bestOption.name} appears to be the strongest choice based on your analysis.\n\n`;
+  // Simplified analysis that only includes the recommendation
+  let analysis = `Recommendation: ${bestOption.name} appears to be the strongest choice based on your analysis.\n\n`;
   
   // Add contextual advice
   if (context.importance === "high") {
