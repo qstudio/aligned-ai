@@ -28,3 +28,9 @@ export interface OptionGenerationResponse {
   }[];
   rationale?: string;
 }
+
+// Type for decision context
+export interface DecisionContext {
+  importance: 'low' | 'medium' | 'high';
+  timeframe: 'short' | 'medium' | 'long';
+}
