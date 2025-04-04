@@ -1,14 +1,18 @@
-import React, { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import React from "react";
 import Header from "@/components/Header";
-import CoinFlipper from "@/components/CoinFlipper";
-import RandomNumber from "@/components/RandomNumber";
-import YesNoDecider from "@/components/YesNoDecider";
-import OptionDecider from "@/components/OptionDecider";
 import DecisionAnalyzer from "@/components/DecisionAnalyzer";
-import { Coins, Calculator, MessageCircleQuestion, ListChecks, Brain } from "lucide-react";
+import { Brain } from "lucide-react";
+
 const Index: React.FC = () => {
-  const [activeTab, setActiveTab] = useState("analyzer");
-  return;
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        <DecisionAnalyzer />
+      </main>
+    </div>
+  );
 };
+
 export default Index;
