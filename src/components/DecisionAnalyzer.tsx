@@ -52,9 +52,7 @@ const DecisionAnalyzer: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
 
   const addOption = () => {
     const newOption = {
@@ -167,9 +165,7 @@ const DecisionAnalyzer: React.FC = () => {
     if (decisionTitle.trim().length > 5) {
       const extracted = extractContextFromTitle(decisionTitle);
       setExtractedContext(extracted);
-      if (extracted.confidence < 0.5) {
-        setNeedsMoreContext(true);
-      }
+      setNeedsMoreContext(extracted.confidence < 0.5);
       setManualImportance(extracted.importance);
       setManualTimeframe(extracted.timeframe);
     }
