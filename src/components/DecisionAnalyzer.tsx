@@ -234,7 +234,7 @@ const DecisionAnalyzer: React.FC = () => {
             >
               {isGenerating ? "Generating..." : (
                 <>
-                  <Wand2 className="h-4 w-4" /> Generate
+                  <Wand2 className="h-4 w-4" /> Analyse
                 </>
               )}
             </Button>
@@ -334,72 +334,49 @@ const DecisionAnalyzer: React.FC = () => {
           <>
             <Separator className="my-2" />
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Options (Maximum 2)</Label>
-
-              {isGenerating ? (
-                <div className="py-4 text-center text-muted-foreground text-sm">
-                  Generating options based on your decision...
-                </div>
-              ) : options.length === 0 ? (
-                <div className="py-4 text-center text-muted-foreground text-sm">
-                  Click the "Generate" button to automatically create options based on your decision.
-                </div>
-              ) : (
-                <div className="space-y-2 px-1 pb-1">
+            {isGenerating ? (
+              <div className="py-4 text-center text-muted-foreground text-sm">
+                Generating options based on your decision...
+              </div>
+            ) : options.length > 0 ? (
+              <div className="space-y-4">
+                {/* Pro vs Con columns for side-by-side comparison */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {options.map((option, optionIndex) => (
-                    <Collapsible 
-                      key={optionIndex} 
-                      open={openOptionIndexes.includes(optionIndex)} 
-                      onOpenChange={() => toggleOptionOpen(optionIndex)} 
-                      className="rounded-md border"
-                    >
-                      <div className="p-2 flex justify-between items-center">
-                        <div className="flex-1 font-medium text-sm px-2">{option.name}</div>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <ChevronDown className={`h-3 w-3 transition-transform ${openOptionIndexes.includes(optionIndex) ? 'rotate-180' : ''}`} />
-                          </Button>
-                        </CollapsibleTrigger>
-                      </div>
-                      
-                      <CollapsibleContent>
-                        <div className="p-2 pt-0">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <Label className="text-xs text-green-600">Pros</Label>
-                              <ScrollArea className="h-24 rounded border p-1">
-                                {option.pros.map((pro, proIndex) => (
-                                  <div key={proIndex} className="flex items-center gap-1 py-1">
-                                    <div className="flex-1 text-xs flex items-center gap-1">
-                                      <span className="text-green-600">+</span> {pro}
-                                    </div>
-                                  </div>
-                                ))}
-                              </ScrollArea>
-                            </div>
-
-                            <div className="space-y-1">
-                              <Label className="text-xs text-red-600">Cons</Label>
-                              <ScrollArea className="h-24 rounded border p-1">
-                                {option.cons.map((con, conIndex) => (
-                                  <div key={conIndex} className="flex items-center gap-1 py-1">
-                                    <div className="flex-1 text-xs flex items-center gap-1">
-                                      <span className="text-red-600">-</span> {con}
-                                    </div>
-                                  </div>
-                                ))}
-                              </ScrollArea>
-                            </div>
-                          </div>
+                    <div key={optionIndex} className="rounded-lg border p-3">
+                      <h3 className="font-medium text-sm mb-2">{option.name}</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-green-600">Pros</Label>
+                          <ScrollArea className="h-20 rounded border p-1">
+                            {option.pros.map((pro, proIndex) => (
+                              <div key={proIndex} className="flex items-center gap-1 py-1">
+                                <div className="flex-1 text-xs flex items-center gap-1">
+                                  <span className="text-green-600">+</span> {pro}
+                                </div>
+                              </div>
+                            ))}
+                          </ScrollArea>
                         </div>
-                      </CollapsibleContent>
-                    </Collapsible>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs text-red-600">Cons</Label>
+                          <ScrollArea className="h-20 rounded border p-1">
+                            {option.cons.map((con, conIndex) => (
+                              <div key={conIndex} className="flex items-center gap-1 py-1">
+                                <div className="flex-1 text-xs flex items-center gap-1">
+                                  <span className="text-red-600">-</span> {con}
+                                </div>
+                              </div>
+                            ))}
+                          </ScrollArea>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              )}
-
-              {options.length > 0 && (
+                
+                {/* Selection buttons */}
                 <div className="grid grid-cols-2 gap-3">
                   {options.map((option, index) => (
                     <Button
@@ -413,8 +390,12 @@ const DecisionAnalyzer: React.FC = () => {
                     </Button>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="py-4 text-center text-muted-foreground text-sm">
+                Click the "Analyse" button to automatically create options based on your decision.
+              </div>
+            )}
             
             {selectedOptionIndex !== null && analysis && (
               <motion.div 
