@@ -29,12 +29,12 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
     // Regex to find reference patterns like [1], [2], etc.
     const referenceRegex = /\[(\d+)\]/g;
     
-    // Replace references with links
+    // Replace references with links that have preventDefault behavior
     let formattedText = text.replace(referenceRegex, (match, refNumber) => {
       // For demonstration, we'll create a link to a search for the reference
       // In a real app, you would map these to actual reference URLs
       const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`reference ${refNumber} ${selectedOption.name}`)}`;
-      return `<a href="${searchUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${match}</a>`;
+      return `<a href="${searchUrl}" class="text-blue-600 hover:underline reference-link" data-reference="${refNumber}">`;
     });
     
     // Now apply markdown formatting, careful not to affect our links
@@ -54,6 +54,25 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
     formattedText = formattedText.replace(/^\- (.*?)$/gm, '<li class="ml-4">$1</li>');
     
     return formattedText;
+  };
+
+  // Handle click on reference links to prevent page reload
+  const handleReferenceClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    
+    // Check if the clicked element is a reference link
+    if (target.tagName === 'A' && target.classList.contains('reference-link')) {
+      e.preventDefault();
+      
+      // Open in new tab instead of navigating in the current window
+      const href = target.getAttribute('href');
+      if (href) {
+        window.open(href, '_blank', 'noopener,noreferrer');
+      }
+      
+      // Log for debugging
+      console.log('Reference link clicked:', target.dataset.reference);
+    }
   };
 
   return (
@@ -118,7 +137,10 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
         </motion.div>
       )}
 
-      <div className="text-xs max-h-32 overflow-y-auto whitespace-pre-line bg-gray-50 p-2 rounded">
+      <div 
+        className="text-xs max-h-32 overflow-y-auto whitespace-pre-line bg-gray-50 p-2 rounded"
+        onClick={handleReferenceClick}
+      >
         {isAnalyzing ? (
           <div className="flex items-center justify-center py-2">
             <Loader2 className="h-4 w-4 animate-spin mr-2" /> 
