@@ -443,7 +443,7 @@ const DecisionAnalyzer: React.FC = () => {
           <div className="flex gap-2">
             <Input 
               id="decision" 
-              placeholder="e.g., Which job offer should I accept?" 
+              placeholder="It's raining outside and I need to go and feed my sheep - should I go now or later?" 
               value={decisionTitle} 
               onChange={e => setDecisionTitle(e.target.value)} 
               className="flex-1" 
