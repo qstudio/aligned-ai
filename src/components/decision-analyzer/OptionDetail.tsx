@@ -21,6 +21,24 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
   analysis,
   isAnalyzing
 }) => {
+  // Function to convert reference numbers in square brackets to links
+  const formatAnalysisWithLinks = (text: string) => {
+    if (!text) return "";
+    
+    // Regex to find reference patterns like [1], [2], etc.
+    const referenceRegex = /\[(\d+)\]/g;
+    
+    // Replace references with links
+    const formattedText = text.replace(referenceRegex, (match, refNumber) => {
+      // For demonstration, we'll create a link to a search for the reference
+      // In a real app, you would map these to actual reference URLs
+      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`reference ${refNumber} ${selectedOption.name}`)}`;
+      return `<a href="${searchUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${match}</a>`;
+    });
+    
+    return formattedText;
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
@@ -90,7 +108,9 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
             Analyzing your selection...
           </div>
         ) : (
-          analysis
+          analysis && (
+            <div dangerouslySetInnerHTML={{ __html: formatAnalysisWithLinks(analysis) }} />
+          )
         )}
       </div>
     </motion.div>
