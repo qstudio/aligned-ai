@@ -36,6 +36,15 @@ interface DecisionInputProps {
   setExperimentMode: (mode: "enabled" | "disabled" | "a-b") => void;
 }
 
+// Example questions that will rotate in the input field
+const exampleQuestions = [
+  "Should I eat rice or pasta tonight?",
+  "Should I go dancing or ice skating?",
+  "Is it better to study tonight or wake up early tomorrow?",
+  "Should I buy a new phone now or wait for the next model?",
+  "Would it be better to take the train or drive to the city?"
+];
+
 export const DecisionInput: React.FC<DecisionInputProps> = ({
   decisionTitle,
   setDecisionTitle,
@@ -52,11 +61,36 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
   setExperimentMode
 }) => {
   const [inputFocused, setInputFocused] = useState(false);
-  const placeholder = "It's raining outside and I need to go and feed my sheep - should I go now or later?";
+  const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
+  const [isDefaultQuestion, setIsDefaultQuestion] = useState(true);
+  
+  // Rotate through example questions every 5 seconds if the input is not focused
+  // and still contains the default text
+  useEffect(() => {
+    if (!inputFocused && isDefaultQuestion) {
+      const interval = setInterval(() => {
+        setCurrentExampleIndex((prevIndex) => (prevIndex + 1) % exampleQuestions.length);
+        if (isDefaultQuestion) {
+          setDecisionTitle(exampleQuestions[(currentExampleIndex + 1) % exampleQuestions.length]);
+        }
+      }, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [inputFocused, currentExampleIndex, isDefaultQuestion, setDecisionTitle]);
+
+  // Set initial example question when component mounts
+  useEffect(() => {
+    if (!decisionTitle) {
+      setDecisionTitle(exampleQuestions[currentExampleIndex]);
+      setIsDefaultQuestion(true);
+    }
+  }, []);
   
   const useBetterPhrasing = () => {
     if (betterPhrasing) {
       setDecisionTitle(betterPhrasing);
+      setIsDefaultQuestion(false);
       toast.success("Using suggested phrasing");
     }
   };
@@ -70,10 +104,26 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
 
   const handleInputFocus = () => {
     setInputFocused(true);
+    // Clear the input if it's a default example question
+    if (isDefaultQuestion) {
+      setDecisionTitle("");
+    }
   };
 
   const handleInputBlur = () => {
     setInputFocused(false);
+    
+    // If user left the field empty, set an example question
+    if (!decisionTitle.trim()) {
+      setDecisionTitle(exampleQuestions[currentExampleIndex]);
+      setIsDefaultQuestion(true);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDecisionTitle(e.target.value);
+    // If user types something, it's no longer a default question
+    setIsDefaultQuestion(false);
   };
 
   const handleSettingsClick = (e: React.MouseEvent) => {
@@ -92,9 +142,8 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
       <div className="flex gap-2">
         <Input 
           id="decision" 
-          placeholder={inputFocused || decisionTitle ? "" : placeholder}
           value={decisionTitle} 
-          onChange={e => setDecisionTitle(e.target.value)} 
+          onChange={handleInputChange} 
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
