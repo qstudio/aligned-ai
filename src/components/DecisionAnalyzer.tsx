@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, Plus, Trash2, Wand2, AlertCircle } from "lucide-react";
+import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { 
@@ -20,6 +19,7 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type Option = {
   name: string;
@@ -43,7 +43,6 @@ const DecisionAnalyzer: React.FC = () => {
   const [currentCon, setCurrentCon] = useState("");
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   
-  // Replace explicit inputs with extracted context
   const [extractedContext, setExtractedContext] = useState<ContextData>({
     importance: "medium",
     timeframe: "medium",
@@ -53,6 +52,7 @@ const DecisionAnalyzer: React.FC = () => {
   const [needsMoreContext, setNeedsMoreContext] = useState(false);
   const [manualImportance, setManualImportance] = useState<"low" | "medium" | "high">("medium");
   const [manualTimeframe, setManualTimeframe] = useState<"short" | "medium" | "long">("medium");
+  const [openOptionIndexes, setOpenOptionIndexes] = useState<number[]>([]);
   
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -60,13 +60,18 @@ const DecisionAnalyzer: React.FC = () => {
   const { toast } = useToast();
 
   const addOption = () => {
-    setOptions([...options, { name: "", pros: [""], cons: [""] }]);
+    const newOption = { name: "", pros: [""], cons: [""] };
+    const newOptions = [...options, newOption];
+    setOptions(newOptions);
+    setOpenOptionIndexes([...openOptionIndexes, options.length]);
   };
 
   const removeOption = (index: number) => {
     const newOptions = [...options];
     newOptions.splice(index, 1);
     setOptions(newOptions);
+    
+    setOpenOptionIndexes(openOptionIndexes.filter(i => i !== index).map(i => i > index ? i - 1 : i));
   };
 
   const updateOptionName = (index: number, name: string) => {
@@ -118,15 +123,21 @@ const DecisionAnalyzer: React.FC = () => {
     newOptions[optionIndex].cons.splice(conIndex, 1);
     setOptions(newOptions);
   };
+  
+  const toggleOptionOpen = (index: number) => {
+    if (openOptionIndexes.includes(index)) {
+      setOpenOptionIndexes(openOptionIndexes.filter(i => i !== index));
+    } else {
+      setOpenOptionIndexes([...openOptionIndexes, index]);
+    }
+  };
 
-  // Add function to extract context from the decision title
   const extractContextFromTitle = (title: string) => {
     const lowerTitle = title.toLowerCase();
     let importance: "low" | "medium" | "high" = "medium";
     let timeframe: "short" | "medium" | "long" = "medium";
     let confidence = 0.4; // Default low confidence
     
-    // Check for importance indicators
     if (lowerTitle.includes("critical") || 
         lowerTitle.includes("important") || 
         lowerTitle.includes("significant") ||
@@ -145,7 +156,6 @@ const DecisionAnalyzer: React.FC = () => {
       confidence = 0.7;
     }
     
-    // Check for timeframe indicators
     if (lowerTitle.includes("urgent") || 
         lowerTitle.includes("immediate") || 
         lowerTitle.includes("today") ||
@@ -168,22 +178,25 @@ const DecisionAnalyzer: React.FC = () => {
     }
     
     if (title.length < 15) {
-      // Very short titles likely don't contain enough info
       confidence = 0.2;
     }
     
     return { importance, timeframe, confidence };
   };
-  
-  useEffect(() => {
+
+  const processDecisionTitle = () => {
     if (decisionTitle.trim().length > 5) {
       const extracted = extractContextFromTitle(decisionTitle);
       setExtractedContext(extracted);
-      setNeedsMoreContext(extracted.confidence < 0.5);
+      
+      if (extracted.confidence < 0.5) {
+        setNeedsMoreContext(true);
+      }
+      
       setManualImportance(extracted.importance);
       setManualTimeframe(extracted.timeframe);
     }
-  }, [decisionTitle]);
+  };
 
   const generateOptions = () => {
     if (!decisionTitle.trim()) {
@@ -195,15 +208,19 @@ const DecisionAnalyzer: React.FC = () => {
       return;
     }
 
+    processDecisionTitle();
+    
     setIsGenerating(true);
     
-    // Clear previous options
     setOptions([]);
+    setOpenOptionIndexes([]);
     
-    // Simulate AI generating options (in a real app, this would call an AI API)
     setTimeout(() => {
       const generatedOptions = generateSampleOptions(decisionTitle);
       setOptions(generatedOptions);
+      
+      setOpenOptionIndexes(generatedOptions.map((_, index) => index));
+      
       setIsGenerating(false);
       
       toast({
@@ -213,13 +230,9 @@ const DecisionAnalyzer: React.FC = () => {
     }, 1500);
   };
   
-  // Function to generate sample options based on decision title
   const generateSampleOptions = (title: string): Option[] => {
-    // This is a simple rules-based generator that looks for keywords
-    // In a real app, this would use an AI API
     const lowerTitle = title.toLowerCase();
     
-    // Default options if no keywords match
     let optionSet: Option[] = [
       {
         name: "Option A",
@@ -233,7 +246,6 @@ const DecisionAnalyzer: React.FC = () => {
       }
     ];
     
-    // Career decision
     if (lowerTitle.includes("job") || lowerTitle.includes("career") || lowerTitle.includes("work")) {
       optionSet = [
         {
@@ -247,9 +259,7 @@ const DecisionAnalyzer: React.FC = () => {
           cons: ["Potential for stagnation"]
         }
       ];
-    }
-    // Purchase decision
-    else if (lowerTitle.includes("buy") || lowerTitle.includes("purchase")) {
+    } else if (lowerTitle.includes("buy") || lowerTitle.includes("purchase")) {
       optionSet = [
         {
           name: "Make the purchase now",
@@ -262,9 +272,7 @@ const DecisionAnalyzer: React.FC = () => {
           cons: ["Missing out on benefits"]
         }
       ];
-    }
-    // Education decision
-    else if (lowerTitle.includes("school") || lowerTitle.includes("study") || lowerTitle.includes("learn")) {
+    } else if (lowerTitle.includes("school") || lowerTitle.includes("study") || lowerTitle.includes("learn")) {
       optionSet = [
         {
           name: "Pursue further education",
@@ -277,9 +285,7 @@ const DecisionAnalyzer: React.FC = () => {
           cons: ["Potential career ceiling without credentials"]
         }
       ];
-    }
-    // Relationship decision
-    else if (lowerTitle.includes("relationship") || lowerTitle.includes("partner") || lowerTitle.includes("marry")) {
+    } else if (lowerTitle.includes("relationship") || lowerTitle.includes("partner") || lowerTitle.includes("marry")) {
       optionSet = [
         {
           name: "Commit to the relationship",
@@ -292,9 +298,7 @@ const DecisionAnalyzer: React.FC = () => {
           cons: ["Potential loneliness"]
         }
       ];
-    }
-    // Moving decision
-    else if (lowerTitle.includes("move") || lowerTitle.includes("relocate") || lowerTitle.includes("home")) {
+    } else if (lowerTitle.includes("move") || lowerTitle.includes("relocate") || lowerTitle.includes("home")) {
       optionSet = [
         {
           name: "Relocate",
@@ -313,7 +317,6 @@ const DecisionAnalyzer: React.FC = () => {
   };
 
   const analyzeDecision = () => {
-    // Validate inputs
     if (!decisionTitle.trim()) {
       toast({
         title: "Missing information",
@@ -338,18 +341,17 @@ const DecisionAnalyzer: React.FC = () => {
       return;
     }
 
+    processDecisionTitle();
+
     setIsAnalyzing(true);
     setAnalysis(null);
     
-    // Get the final importance and timeframe (either from extracted or manual input)
     const finalImportance = needsMoreContext ? manualImportance : extractedContext.importance;
     const finalTimeframe = needsMoreContext ? manualTimeframe : extractedContext.timeframe;
     
-    // Simulate analysis delay (in a real app, this would be an API call to an AI service)
     setTimeout(() => {
       let suggestionText = "";
       
-      // Find option with most pros and fewest cons
       const optionScores = options.map((option, index) => {
         const validPros = option.pros.filter(p => p.trim()).length;
         const validCons = option.cons.filter(c => c.trim()).length;
@@ -363,10 +365,8 @@ const DecisionAnalyzer: React.FC = () => {
       optionScores.sort((a, b) => b.score - a.score);
       const bestOption = optionScores[0];
       
-      // Generate analysis text based on decision factors
       suggestionText = `Based on your analysis of "${decisionTitle}" (${finalImportance} importance, ${finalTimeframe}-term decision):\n\n`;
       
-      // Add option comparison
       suggestionText += "Option comparison:\n";
       options.forEach((option) => {
         if (option.name.trim()) {
@@ -378,7 +378,6 @@ const DecisionAnalyzer: React.FC = () => {
       
       suggestionText += `\nRecommendation: ${bestOption.name} appears to be the stronger choice based on your analysis.\n\n`;
       
-      // Add contextual advice
       if (finalImportance === "high") {
         suggestionText += "Since this is a high-importance decision, consider gathering more information or consulting others before finalizing.\n";
       }
@@ -389,7 +388,6 @@ const DecisionAnalyzer: React.FC = () => {
         suggestionText += "For this short-term decision, focus on immediate outcomes while being mindful of potential consequences.\n";
       }
       
-      // Set the analysis and update state
       setAnalysis(suggestionText);
       setSelectedOptionIndex(bestOption.index);
       setIsAnalyzing(false);
@@ -447,7 +445,7 @@ const DecisionAnalyzer: React.FC = () => {
               <p className="font-medium">
                 {extractedContext.confidence >= 0.5 
                   ? "I understand your decision context" 
-                  : "I need more context about your decision"}
+                  : "I may need more information about your decision"}
               </p>
               <p className="text-muted-foreground">
                 This appears to be a{" "}
@@ -598,146 +596,163 @@ const DecisionAnalyzer: React.FC = () => {
               Click the "Generate" button to automatically create options based on your decision.
             </div>
           ) : (
-            <div className="space-y-6 max-h-96 overflow-y-auto p-1">
+            <div className="space-y-4 max-h-96 overflow-y-auto p-1">
               {options.map((option, optionIndex) => (
-                <Card key={optionIndex} className={`p-3 ${selectedOptionIndex === optionIndex ? 'border-decision-purple border-2' : ''}`}>
-                  <div className="flex justify-between items-center mb-3">
+                <Collapsible 
+                  key={optionIndex} 
+                  open={openOptionIndexes.includes(optionIndex)}
+                  onOpenChange={() => toggleOptionOpen(optionIndex)}
+                  className={`rounded-md border ${selectedOptionIndex === optionIndex ? 'border-decision-purple border-2' : ''}`}
+                >
+                  <div className="p-3 flex justify-between items-center">
                     <Input
                       placeholder={`Option ${optionIndex + 1}`}
                       value={option.name}
                       onChange={(e) => updateOptionName(optionIndex, e.target.value)}
-                      className="flex-1 mr-2"
+                      className="flex-1 mr-2 border-0 focus-visible:ring-0"
                     />
-                    {options.length > 2 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeOption(optionIndex)}
-                        className="h-8 w-8 flex-none"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Pros Section */}
-                    <div className="space-y-2">
-                      <Label className="text-green-600">Pros</Label>
-                      <ScrollArea className="h-32 rounded border p-2">
-                        {option.pros.map((pro, proIndex) => (
-                          <div key={proIndex} className="flex items-center gap-2 py-1">
-                            {proIndex === 0 && !pro.trim() ? (
-                              <Input
-                                placeholder="Enter a pro"
-                                value={pro}
-                                onChange={(e) => {
-                                  const newOptions = [...options];
-                                  newOptions[optionIndex].pros[proIndex] = e.target.value;
-                                  setOptions(newOptions);
-                                }}
-                                className="flex-1"
-                              />
-                            ) : pro.trim() ? (
-                              <>
-                                <div className="flex-1 text-sm flex items-center gap-1">
-                                  <span className="text-green-600">+</span> {pro}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removePro(optionIndex, proIndex)}
-                                  className="h-6 w-6"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </>
-                            ) : null}
-                          </div>
-                        ))}
-                      </ScrollArea>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="New pro"
-                          value={currentPro}
-                          onChange={(e) => setCurrentPro(e.target.value)}
-                          className="flex-1"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              addPro(optionIndex);
-                            }
-                          }}
-                        />
+                    <div className="flex items-center gap-1">
+                      {options.length > 2 && (
                         <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addPro(optionIndex)}
-                          className="whitespace-nowrap"
-                        >
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Cons Section */}
-                    <div className="space-y-2">
-                      <Label className="text-red-600">Cons</Label>
-                      <ScrollArea className="h-32 rounded border p-2">
-                        {option.cons.map((con, conIndex) => (
-                          <div key={conIndex} className="flex items-center gap-2 py-1">
-                            {conIndex === 0 && !con.trim() ? (
-                              <Input
-                                placeholder="Enter a con"
-                                value={con}
-                                onChange={(e) => {
-                                  const newOptions = [...options];
-                                  newOptions[optionIndex].cons[conIndex] = e.target.value;
-                                  setOptions(newOptions);
-                                }}
-                                className="flex-1"
-                              />
-                            ) : con.trim() ? (
-                              <>
-                                <div className="flex-1 text-sm flex items-center gap-1">
-                                  <span className="text-red-600">-</span> {con}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeCon(optionIndex, conIndex)}
-                                  className="h-6 w-6"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </>
-                            ) : null}
-                          </div>
-                        ))}
-                      </ScrollArea>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="New con"
-                          value={currentCon}
-                          onChange={(e) => setCurrentCon(e.target.value)}
-                          className="flex-1"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              addCon(optionIndex);
-                            }
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation(); 
+                            removeOption(optionIndex);
                           }}
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addCon(optionIndex)}
-                          className="whitespace-nowrap"
+                          className="h-8 w-8 flex-none"
                         >
-                          Add
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
+                      )}
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <ChevronDown className={`h-4 w-4 transition-transform ${openOptionIndexes.includes(optionIndex) ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </CollapsibleTrigger>
                     </div>
                   </div>
-                </Card>
+                  
+                  <CollapsibleContent>
+                    <div className="p-3 pt-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-green-600">Pros</Label>
+                          <ScrollArea className="h-32 rounded border p-2">
+                            {option.pros.map((pro, proIndex) => (
+                              <div key={proIndex} className="flex items-center gap-2 py-1">
+                                {proIndex === 0 && !pro.trim() ? (
+                                  <Input
+                                    placeholder="Enter a pro"
+                                    value={pro}
+                                    onChange={(e) => {
+                                      const newOptions = [...options];
+                                      newOptions[optionIndex].pros[proIndex] = e.target.value;
+                                      setOptions(newOptions);
+                                    }}
+                                    className="flex-1"
+                                  />
+                                ) : pro.trim() ? (
+                                  <>
+                                    <div className="flex-1 text-sm flex items-center gap-1">
+                                      <span className="text-green-600">+</span> {pro}
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => removePro(optionIndex, proIndex)}
+                                      className="h-6 w-6"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                ) : null}
+                              </div>
+                            ))}
+                          </ScrollArea>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="New pro"
+                              value={currentPro}
+                              onChange={(e) => setCurrentPro(e.target.value)}
+                              className="flex-1"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  addPro(optionIndex);
+                                }
+                              }}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addPro(optionIndex)}
+                              className="whitespace-nowrap"
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-red-600">Cons</Label>
+                          <ScrollArea className="h-32 rounded border p-2">
+                            {option.cons.map((con, conIndex) => (
+                              <div key={conIndex} className="flex items-center gap-2 py-1">
+                                {conIndex === 0 && !con.trim() ? (
+                                  <Input
+                                    placeholder="Enter a con"
+                                    value={con}
+                                    onChange={(e) => {
+                                      const newOptions = [...options];
+                                      newOptions[optionIndex].cons[conIndex] = e.target.value;
+                                      setOptions(newOptions);
+                                    }}
+                                    className="flex-1"
+                                  />
+                                ) : con.trim() ? (
+                                  <>
+                                    <div className="flex-1 text-sm flex items-center gap-1">
+                                      <span className="text-red-600">-</span> {con}
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => removeCon(optionIndex, conIndex)}
+                                      className="h-6 w-6"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                ) : null}
+                              </div>
+                            ))}
+                          </ScrollArea>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="New con"
+                              value={currentCon}
+                              onChange={(e) => setCurrentCon(e.target.value)}
+                              className="flex-1"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  addCon(optionIndex);
+                                }
+                              }}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addCon(optionIndex)}
+                              className="whitespace-nowrap"
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               ))}
             </div>
           )}
