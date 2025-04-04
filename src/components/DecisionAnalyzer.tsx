@@ -330,56 +330,22 @@ const DecisionAnalyzer: React.FC = () => {
               </div>
             ) : options.length > 0 ? (
               <div className="space-y-4">
-                {/* Pro vs Con columns for side-by-side comparison */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {options.map((option, optionIndex) => (
-                    <div key={optionIndex} className="rounded-lg border p-3">
-                      <h3 className="font-medium text-sm mb-2">{option.name}</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-green-600">Pros</Label>
-                          <ScrollArea className="h-20 rounded border p-1">
-                            {option.pros.map((pro, proIndex) => (
-                              <div key={proIndex} className="flex items-center gap-1 py-1">
-                                <div className="flex-1 text-xs flex items-center gap-1">
-                                  <span className="text-green-600">+</span> {pro}
-                                </div>
-                              </div>
-                            ))}
-                          </ScrollArea>
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs text-red-600">Cons</Label>
-                          <ScrollArea className="h-20 rounded border p-1">
-                            {option.cons.map((con, conIndex) => (
-                              <div key={conIndex} className="flex items-center gap-1 py-1">
-                                <div className="flex-1 text-xs flex items-center gap-1">
-                                  <span className="text-red-600">-</span> {con}
-                                </div>
-                              </div>
-                            ))}
-                          </ScrollArea>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Selection buttons */}
-                <div className="grid grid-cols-2 gap-3">
-                  {options.map((option, index) => (
-                    <Button
-                      key={index}
-                      onClick={() => selectOption(index)}
-                      disabled={isAnalyzing}
-                      variant="outline"
-                      className={`flex items-center justify-center h-auto py-3 px-4 text-center ${selectedOptionIndex === index ? 'border-2 border-decision-purple' : ''}`}
-                    >
-                      {option.name}
-                    </Button>
-                  ))}
-                </div>
+                {/* Hide pros/cons columns until a decision is made */}
+                {selectedOptionIndex === null && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {options.map((option, index) => (
+                      <Button
+                        key={index}
+                        onClick={() => selectOption(index)}
+                        disabled={isAnalyzing}
+                        variant="outline"
+                        className="flex items-center justify-center h-auto py-3 px-4 text-center"
+                      >
+                        {option.name}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-4 text-center text-muted-foreground text-sm">
@@ -387,7 +353,7 @@ const DecisionAnalyzer: React.FC = () => {
               </div>
             )}
             
-            {selectedOptionIndex !== null && analysis && (
+            {selectedOptionIndex !== null && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }} 
                 animate={{ opacity: 1, y: 0 }} 
