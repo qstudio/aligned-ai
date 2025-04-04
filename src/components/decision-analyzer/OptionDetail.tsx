@@ -1,4 +1,3 @@
-
 import React from "react";
 import { motion } from "framer-motion";
 import { Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
@@ -31,9 +30,8 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
     
     // Replace references with links that have preventDefault behavior
     let formattedText = text.replace(referenceRegex, (match, refNumber) => {
-      // For demonstration, we'll create a link to a search for the reference
-      // In a real app, you would map these to actual reference URLs
-      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`reference ${refNumber} ${selectedOption.name}`)}`;
+      // Create a more relevant search using just the option name and reference number
+      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`${selectedOption.name} ${refNumber}`)}`;
       return `<a href="${searchUrl}" class="text-blue-600 hover:underline reference-link" data-reference="${refNumber}">`;
     });
     
