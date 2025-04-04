@@ -37,6 +37,13 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && decisionTitle.trim() && !isGenerating && !isAnalysingContext) {
+      e.preventDefault();
+      generateOptions();
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
@@ -45,6 +52,7 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
           placeholder="It's raining outside and I need to go and feed my sheep - should I go now or later?" 
           value={decisionTitle} 
           onChange={e => setDecisionTitle(e.target.value)} 
+          onKeyDown={handleKeyDown}
           className={`flex-1 ${!isQuestionValid ? 'border-red-400' : ''}`}
         />
         <Button 
