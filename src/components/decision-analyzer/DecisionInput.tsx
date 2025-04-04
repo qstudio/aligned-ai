@@ -36,7 +36,7 @@ interface DecisionInputProps {
   setExperimentMode: (mode: "enabled" | "disabled" | "a-b") => void;
 }
 
-// Example questions that will rotate in the input field
+// Example questions that may be shown as default text
 const exampleQuestions = [
   "Should I eat rice or pasta tonight?",
   "Should I go dancing or ice skating?",
@@ -61,28 +61,14 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
   setExperimentMode
 }) => {
   const [inputFocused, setInputFocused] = useState(false);
-  const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
   const [isDefaultQuestion, setIsDefaultQuestion] = useState(true);
   
-  // Rotate through example questions every 5 seconds if the input is not focused
-  // and still contains the default text
-  useEffect(() => {
-    if (!inputFocused && isDefaultQuestion) {
-      const interval = setInterval(() => {
-        setCurrentExampleIndex((prevIndex) => (prevIndex + 1) % exampleQuestions.length);
-        if (isDefaultQuestion) {
-          setDecisionTitle(exampleQuestions[(currentExampleIndex + 1) % exampleQuestions.length]);
-        }
-      }, 5000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [inputFocused, currentExampleIndex, isDefaultQuestion, setDecisionTitle]);
-
-  // Set initial example question when component mounts
+  // Set initial example question when component mounts - only once
   useEffect(() => {
     if (!decisionTitle) {
-      setDecisionTitle(exampleQuestions[currentExampleIndex]);
+      // Select a random example from the array
+      const randomIndex = Math.floor(Math.random() * exampleQuestions.length);
+      setDecisionTitle(exampleQuestions[randomIndex]);
       setIsDefaultQuestion(true);
     }
   }, []);
@@ -115,7 +101,9 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
     
     // If user left the field empty, set an example question
     if (!decisionTitle.trim()) {
-      setDecisionTitle(exampleQuestions[currentExampleIndex]);
+      // Pick a random example when the field is left empty
+      const randomIndex = Math.floor(Math.random() * exampleQuestions.length);
+      setDecisionTitle(exampleQuestions[randomIndex]);
       setIsDefaultQuestion(true);
     }
   };
