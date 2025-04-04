@@ -22,7 +22,7 @@ export const callPerplexityAPI = async (systemPrompt: string, userPrompt: string
             content: userPrompt
           }
         ],
-        temperature: 0.4, // Increased from 0.2 to allow more creative responses
+        temperature: 0.2, // Lowered from 0.4 to 0.2 for more consistent JSON output
         top_p: 0.9,
         max_tokens: 1000,
       }),

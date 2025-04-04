@@ -66,7 +66,7 @@ export const buildOptionGenerationPrompt = () => {
     2. At least 3 realistic pros (benefits, advantages)
     3. At least 3 realistic cons (drawbacks, disadvantages)
     
-    You must return your response as valid JSON with the following structure:
+    IMPORTANT: You MUST return your response as valid parseable JSON with the following structure and no markdown formatting:
     {
       "options": [
         {
@@ -76,12 +76,32 @@ export const buildOptionGenerationPrompt = () => {
         },
         ...
       ],
-      "rationale": "Brief explanation of your reasoning" (optional)
+      "rationale": "Brief explanation of your reasoning"
+    }
+    
+    Here is an example of valid JSON output:
+    {
+      "options": [
+        {
+          "name": "Stay at current job",
+          "pros": ["Stable income", "Familiar environment", "Good benefits"],
+          "cons": ["Limited growth", "Long commute", "Repetitive tasks"]
+        },
+        {
+          "name": "Accept new job offer",
+          "pros": ["Higher salary", "Better location", "New challenges"],
+          "cons": ["Unknown company culture", "Less job security", "Learning curve"]
+        }
+      ],
+      "rationale": "These options represent the main paths for this career decision."
     }
     
     Provide 2-4 realistic options with at least 3 pros and 3 cons for each option.
     If the question is unclear, use your best judgment to infer the most likely options being considered.
     It is better to provide reasonable options based on assumptions than to return an empty response.
+    
+    DO NOT include any explanations, markdown formatting, or other text outside the JSON structure.
+    Just return the raw JSON object that can be parsed directly.
   `;
   
   return prompt;

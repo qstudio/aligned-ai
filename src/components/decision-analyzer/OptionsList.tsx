@@ -26,7 +26,7 @@ export const OptionsList: React.FC<OptionsListProps> = ({
   if (options.length === 0) {
     return (
       <div className="py-4 text-center text-muted-foreground text-sm">
-        Click the "Analyse" button to automatically create options based on your decision.
+        Click the "Analyse" button to automatically create options based on your question.
       </div>
     );
   }

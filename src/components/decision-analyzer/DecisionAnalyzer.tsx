@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -161,7 +162,7 @@ const DecisionAnalyzer: React.FC = () => {
         setNeedsClarification(true);
         setIsQuestionValid(false);
         setShowOptions(false);
-        toast.error("Couldn't generate options. Please provide more details about your decision.");
+        toast.error("Couldn't generate options. Please provide more details about your question.");
         return;
       }
       
@@ -169,7 +170,7 @@ const DecisionAnalyzer: React.FC = () => {
       setOpenOptionIndexes(Array.from({ length: generatedOptions.options.length }, (_, i) => i));
       
       setIsQuestionValid(true);
-      toast.success(`Generated ${generatedOptions.options.length} options for your decision`);
+      toast.success(`Generated ${generatedOptions.options.length} options for your question`);
     } catch (error) {
       console.error("Error generating options:", error);
       setIsQuestionValid(false);
@@ -258,7 +259,7 @@ const DecisionAnalyzer: React.FC = () => {
 
             {isGenerating ? (
               <div className="py-4 text-center text-muted-foreground text-sm">
-                Generating options based on your decision...
+                Generating options based on your question...
               </div>
             ) : (
               <OptionsList
