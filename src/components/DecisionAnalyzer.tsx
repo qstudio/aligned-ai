@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown } from "lucide-react";
+import { Check, Plus, Trash2, Wand2, AlertCircle, ChevronDown, HelpCircle, Brain } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { analyzeDecisionContext, generateOptionsWithLLM, analyzeDecisionWithLLM } from "@/services/llmService";
 
 type Option = {
   name: string;
@@ -52,6 +53,8 @@ const DecisionAnalyzer: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const { toast } = useToast();
 
   const addOption = () => {
@@ -128,50 +131,38 @@ const DecisionAnalyzer: React.FC = () => {
     }
   };
 
-  const extractContextFromTitle = (title: string) => {
-    const lowerTitle = title.toLowerCase();
-    let importance: "low" | "medium" | "high" = "medium";
-    let timeframe: "short" | "medium" | "long" = "medium";
-    let confidence = 0.4; // Default low confidence
-
-    if (lowerTitle.includes("critical") || lowerTitle.includes("important") || lowerTitle.includes("significant") || lowerTitle.includes("major") || lowerTitle.includes("life") || lowerTitle.includes("career") || lowerTitle.includes("marriage") || lowerTitle.includes("health")) {
-      importance = "high";
-      confidence = 0.7;
-    } else if (lowerTitle.includes("minor") || lowerTitle.includes("small") || lowerTitle.includes("trivial") || lowerTitle.includes("little")) {
-      importance = "low";
-      confidence = 0.7;
-    }
-    if (lowerTitle.includes("urgent") || lowerTitle.includes("immediate") || lowerTitle.includes("today") || lowerTitle.includes("right now") || lowerTitle.includes("quickly")) {
-      timeframe = "short";
-      confidence = 0.8;
-    } else if (lowerTitle.includes("long-term") || lowerTitle.includes("future") || lowerTitle.includes("years") || lowerTitle.includes("permanent") || lowerTitle.includes("lifetime")) {
-      timeframe = "long";
-      confidence = 0.8;
-    } else if (lowerTitle.includes("next month") || lowerTitle.includes("soon") || lowerTitle.includes("few weeks")) {
-      timeframe = "medium";
-      confidence = 0.7;
-    }
-    if (title.length < 15) {
-      confidence = 0.2;
-    }
-    return {
-      importance,
-      timeframe,
-      confidence
-    };
-  };
-
-  const processDecisionTitle = () => {
+  const processDecisionTitle = async () => {
     if (decisionTitle.trim().length > 5) {
-      const extracted = extractContextFromTitle(decisionTitle);
-      setExtractedContext(extracted);
-      setNeedsMoreContext(extracted.confidence < 0.5);
-      setManualImportance(extracted.importance);
-      setManualTimeframe(extracted.timeframe);
+      try {
+        const contextAnalysis = await analyzeDecisionContext(decisionTitle);
+        setExtractedContext({
+          importance: contextAnalysis.importance,
+          timeframe: contextAnalysis.timeframe,
+          confidence: contextAnalysis.confidence
+        });
+        setNeedsMoreContext(contextAnalysis.confidence < 0.5);
+        setManualImportance(contextAnalysis.importance);
+        setManualTimeframe(contextAnalysis.timeframe);
+        
+        if (contextAnalysis.suggestedQuestions && contextAnalysis.suggestedQuestions.length > 0) {
+          setSuggestedQuestions(contextAnalysis.suggestedQuestions);
+          setShowSuggestions(true);
+        } else {
+          setSuggestedQuestions([]);
+          setShowSuggestions(false);
+        }
+      } catch (error) {
+        console.error("Error analyzing decision:", error);
+        toast({
+          title: "Analysis error",
+          description: "Could not analyze your decision context. Using default settings.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
-  const generateOptions = () => {
+  const generateOptions = async () => {
     if (!decisionTitle.trim()) {
       toast({
         title: "Missing information",
@@ -180,191 +171,49 @@ const DecisionAnalyzer: React.FC = () => {
       });
       return;
     }
-    processDecisionTitle();
+    
+    await processDecisionTitle();
+    
     setIsGenerating(true);
     setOptions([]);
     setOpenOptionIndexes([]);
     setShowOptions(true);
-    setTimeout(() => {
-      const generatedOptions = generateSampleOptions(decisionTitle);
-      setOptions(generatedOptions);
-      setOpenOptionIndexes(generatedOptions.map((_, index) => index));
-      setIsGenerating(false);
+    
+    try {
+      const generatedOptions = await generateOptionsWithLLM(decisionTitle);
+      setOptions(generatedOptions.options);
+      setOpenOptionIndexes(generatedOptions.options.map((_, index) => index));
       toast({
         title: "Options generated",
-        description: "Sample options created based on your decision"
+        description: "AI has created options based on your decision"
       });
-    }, 1500);
+    } catch (error) {
+      console.error("Error generating options:", error);
+      toast({
+        title: "Generation error",
+        description: "Could not generate options. Please try again.",
+        variant: "destructive"
+      });
+      // Fallback to basic options
+      setOptions([
+        {
+          name: "Option A",
+          pros: ["Add pros here"],
+          cons: ["Add cons here"]
+        },
+        {
+          name: "Option B",
+          pros: ["Add pros here"],
+          cons: ["Add cons here"]
+        }
+      ]);
+      setOpenOptionIndexes([0, 1]);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const generateSampleOptions = (title: string): Option[] => {
-    const lowerTitle = title.toLowerCase();
-    
-    let optionSet: Option[] = [
-      {
-        name: "Option A",
-        pros: ["Potential benefit"],
-        cons: ["Potential drawback"]
-      }, 
-      {
-        name: "Option B",
-        pros: ["Alternative benefit"],
-        cons: ["Different limitation"]
-      }
-    ];
-
-    if (lowerTitle.includes("job") || lowerTitle.includes("career") || lowerTitle.includes("work") || 
-        lowerTitle.includes("offer") || lowerTitle.includes("position") || lowerTitle.includes("employment")) {
-      optionSet = [
-        {
-          name: "Accept the offer",
-          pros: ["New opportunities for growth", "Potentially better compensation", "Fresh environment"],
-          cons: ["Uncertainty with new role", "Adjustment period", "Leaving familiar environment"]
-        },
-        {
-          name: "Stay in current position",
-          pros: ["Stability and familiarity", "Established relationships", "Known expectations"],
-          cons: ["Potential stagnation", "Missing new opportunities", "Possible career ceiling"]
-        }
-      ];
-    } 
-    else if (lowerTitle.includes("buy") || lowerTitle.includes("purchase") || 
-             lowerTitle.includes("get") || lowerTitle.includes("spend")) {
-      
-      const item = extractItemFromTitle(lowerTitle);
-      
-      optionSet = [
-        {
-          name: `Buy ${item} now`,
-          pros: ["Immediate benefit and use", "Current market options", "Solves present need"],
-          cons: ["Financial impact", "Commitment to this choice", "Potential for buyer's remorse"]
-        },
-        {
-          name: `Wait on ${item} purchase`,
-          pros: ["Financial savings", "More time to research options", "Potential for price drops"],
-          cons: ["Delayed benefits", "Continued need gap", "Risk of price increases"]
-        }
-      ];
-    }
-    else if (lowerTitle.includes("school") || lowerTitle.includes("study") || lowerTitle.includes("learn") || 
-             lowerTitle.includes("education") || lowerTitle.includes("college") || lowerTitle.includes("degree")) {
-      optionSet = [
-        {
-          name: "Pursue further education",
-          pros: ["Knowledge and credential acquisition", "Career advancement potential", "Personal growth"],
-          cons: ["Time investment", "Financial cost", "Delayed income potential"]
-        },
-        {
-          name: "Enter workforce directly",
-          pros: ["Immediate income", "Practical experience", "No student debt"],
-          cons: ["Potential career ceiling", "Fewer credentials", "Harder to change fields later"]
-        }
-      ];
-    }
-    else if (lowerTitle.includes("relationship") || lowerTitle.includes("partner") || 
-             lowerTitle.includes("marry") || lowerTitle.includes("boyfriend") || 
-             lowerTitle.includes("girlfriend") || lowerTitle.includes("date") ||
-             lowerTitle.includes("breakup") || lowerTitle.includes("divorce")) {
-      optionSet = [
-        {
-          name: "Continue the relationship",
-          pros: ["Emotional connection and support", "Shared history and understanding", "Relationship stability"],
-          cons: ["Current issues may persist", "Potential for future regret", "Opportunity cost of other paths"]
-        },
-        {
-          name: "End the relationship",
-          pros: ["Freedom to pursue other paths", "Elimination of current issues", "Personal growth opportunity"],
-          cons: ["Emotional pain and adjustment", "Loss of connection", "Uncertainty about the future"]
-        }
-      ];
-    }
-    else if (lowerTitle.includes("move") || lowerTitle.includes("relocate") || 
-             lowerTitle.includes("home") || lowerTitle.includes("city") || 
-             lowerTitle.includes("apartment") || lowerTitle.includes("house")) {
-      optionSet = [
-        {
-          name: "Make the move",
-          pros: ["New environment and opportunities", "Potential lifestyle improvements", "Fresh start"],
-          cons: ["Leaving behind familiar surroundings", "Moving costs and hassle", "Adjustment period"]
-        },
-        {
-          name: "Stay where you are",
-          pros: ["Established community and familiarity", "Avoiding moving costs", "Stability"],
-          cons: ["Missing potential opportunities elsewhere", "Remaining issues unsolved", "Potential stagnation"]
-        }
-      ];
-    }
-    else if (lowerTitle.includes("travel") || lowerTitle.includes("vacation") || 
-             lowerTitle.includes("trip") || lowerTitle.includes("visit") || 
-             lowerTitle.includes("holiday")) {
-      optionSet = [
-        {
-          name: "Take the trip",
-          pros: ["New experiences and memories", "Break from routine", "Cultural enrichment"],
-          cons: ["Financial cost", "Time away from work/commitments", "Planning stress"]
-        },
-        {
-          name: "Stay home/postpone",
-          pros: ["Financial savings", "No disruption to routine", "Opportunity for local activities"],
-          cons: ["Missed experiences", "Potential disappointment", "Continued desire to travel"]
-        }
-      ];
-    }
-    else if (lowerTitle.includes("health") || lowerTitle.includes("doctor") || 
-             lowerTitle.includes("treatment") || lowerTitle.includes("surgery") ||
-             lowerTitle.includes("diet") || lowerTitle.includes("exercise")) {
-      optionSet = [
-        {
-          name: "Pursue treatment/change",
-          pros: ["Potential health improvement", "Addressing the issue directly", "Peace of mind"],
-          cons: ["Potential side effects", "Financial cost", "Recovery/adjustment time"]
-        },
-        {
-          name: "Seek alternatives/wait",
-          pros: ["Avoiding immediate intervention", "Time to consider options", "Possibly less invasive"],
-          cons: ["Problem may worsen", "Continued symptoms/issues", "Delayed resolution"]
-        }
-      ];
-    }
-    else if (lowerTitle.includes("should i")) {
-      const action = extractActionFromTitle(lowerTitle);
-      
-      optionSet = [
-        {
-          name: `Yes, ${action}`,
-          pros: ["Potential for positive outcome", "Taking action rather than wondering", "New experience"],
-          cons: ["Risk of negative outcome", "Commitment of resources", "Potential regret"]
-        },
-        {
-          name: `No, don't ${action}`,
-          pros: ["Avoiding potential risks", "Conserving resources", "Maintaining status quo"],
-          cons: ["Missing potential benefits", "Continued indecision", "Possible regret of inaction"]
-        }
-      ];
-    }
-    
-    return optionSet;
-  };
-
-  const extractItemFromTitle = (title: string): string => {
-    const cleanTitle = title.replace(/should i buy|should i get|should i purchase|buy or not|get or not/gi, '').trim();
-    
-    if (cleanTitle.includes(" or ")) {
-      return "the item";
-    }
-    
-    return cleanTitle || "the item";
-  };
-
-  const extractActionFromTitle = (title: string): string => {
-    const match = title.match(/should i\s+(.+?)(?:\?|$)/i);
-    if (match && match[1]) {
-      return match[1].trim();
-    }
-    return "proceed with this action";
-  };
-
-  const analyzeDecision = () => {
+  const analyzeDecision = async () => {
     if (!decisionTitle.trim()) {
       toast({
         title: "Missing information",
@@ -373,7 +222,13 @@ const DecisionAnalyzer: React.FC = () => {
       });
       return;
     }
-    const validOptions = options.filter(option => option.name.trim() && option.pros.some(pro => pro.trim()) && option.cons.some(con => con.trim()));
+    
+    const validOptions = options.filter(option => 
+      option.name.trim() && 
+      option.pros.some(pro => pro.trim()) && 
+      option.cons.some(con => con.trim())
+    );
+    
     if (validOptions.length < 2) {
       toast({
         title: "Insufficient options",
@@ -382,13 +237,21 @@ const DecisionAnalyzer: React.FC = () => {
       });
       return;
     }
-    processDecisionTitle();
+    
+    await processDecisionTitle();
     setIsAnalyzing(true);
     setAnalysis(null);
-    const finalImportance = needsMoreContext ? manualImportance : extractedContext.importance;
-    const finalTimeframe = needsMoreContext ? manualTimeframe : extractedContext.timeframe;
-    setTimeout(() => {
-      let suggestionText = "";
+    
+    const finalContext = {
+      importance: needsMoreContext ? manualImportance : extractedContext.importance,
+      timeframe: needsMoreContext ? manualTimeframe : extractedContext.timeframe
+    };
+    
+    try {
+      const analysisResult = await analyzeDecisionWithLLM(decisionTitle, options, finalContext);
+      setAnalysis(analysisResult);
+      
+      // Find the recommended option
       const optionScores = options.map((option, index) => {
         const validPros = option.pros.filter(p => p.trim()).length;
         const validCons = option.cons.filter(c => c.trim()).length;
@@ -399,43 +262,34 @@ const DecisionAnalyzer: React.FC = () => {
         };
       });
       optionScores.sort((a, b) => b.score - a.score);
-      const bestOption = optionScores[0];
-      suggestionText = `Based on your analysis of "${decisionTitle}" (${finalImportance} importance, ${finalTimeframe}-term decision):\n\n`;
-      suggestionText += "Option comparison:\n";
-      options.forEach(option => {
-        if (option.name.trim()) {
-          const validPros = option.pros.filter(p => p.trim()).length;
-          const validCons = option.cons.filter(c => c.trim()).length;
-          suggestionText += `- ${option.name}: ${validPros} pros, ${validCons} cons\n`;
-        }
-      });
-      suggestionText += `\nRecommendation: ${bestOption.name} appears to be the stronger choice based on your analysis.\n\n`;
-      if (finalImportance === "high") {
-        suggestionText += "Since this is a high-importance decision, consider gathering more information or consulting others before finalizing.\n";
-      }
-      if (finalTimeframe === "long") {
-        suggestionText += "For this long-term decision, weigh the long-term implications more heavily than short-term conveniences.\n";
-      } else if (finalTimeframe === "short") {
-        suggestionText += "For this short-term decision, focus on immediate outcomes while being mindful of potential consequences.\n";
-      }
-      setAnalysis(suggestionText);
-      setSelectedOptionIndex(bestOption.index);
-      setIsAnalyzing(false);
+      setSelectedOptionIndex(optionScores[0].index);
+      
       toast({
         title: "Analysis complete",
-        description: `Recommendation: ${bestOption.name}`
+        description: `Recommendation: ${optionScores[0].name}`
       });
-    }, 1500);
+    } catch (error) {
+      console.error("Error analyzing decision:", error);
+      toast({
+        title: "Analysis error",
+        description: "Could not analyze your decision. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
-  return <Card className="w-full">
-      <CardHeader>
-        
-        
+  return (
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xl flex items-center gap-2">
+          <Brain className="h-5 w-5 text-decision-purple" />
+          Decision Analyzer
+        </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="space-y-4">
         <div className="space-y-2">
-          
           <div className="flex gap-2">
             <Input 
               id="decision" 
@@ -448,22 +302,45 @@ const DecisionAnalyzer: React.FC = () => {
               onClick={generateOptions} 
               variant="outline" 
               disabled={isGenerating || !decisionTitle.trim()} 
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 whitespace-nowrap"
             >
               {isGenerating ? "Generating..." : <>
-                  <Wand2 className="h-4 w-4" /> Generate
-                </>}
+                <Wand2 className="h-4 w-4" /> Generate
+              </>}
             </Button>
           </div>
+
+          {showSuggestions && suggestedQuestions.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mt-2">
+              <div className="flex items-start gap-2">
+                <HelpCircle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-800">Need more clarity:</p>
+                  <ul className="list-disc list-inside text-amber-700 space-y-1">
+                    {suggestedQuestions.map((question, idx) => (
+                      <li key={idx}>{question}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {decisionTitle.length > 0 && <div className="p-3 bg-secondary/50 rounded-md flex items-start gap-2">
+        {decisionTitle.length > 0 && (
+          <div className="p-2 bg-secondary/50 rounded-md flex items-start gap-2">
             <div className="mt-0.5">
-              {extractedContext.confidence >= 0.5 ? <Check className="h-5 w-5 text-green-500" /> : <AlertCircle className="h-5 w-5 text-amber-500" />}
+              {extractedContext.confidence >= 0.5 ? (
+                <Check className="h-4 w-4 text-green-500" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+              )}
             </div>
-            <div className="text-sm flex-1">
+            <div className="text-xs flex-1">
               <p className="font-medium">
-                {extractedContext.confidence >= 0.5 ? "I understand your decision context" : "I may need more information about your decision"}
+                {extractedContext.confidence >= 0.5 
+                  ? "I understand your decision context" 
+                  : "I may need more information about your decision"}
               </p>
               <p className="text-muted-foreground">
                 This appears to be a{" "}
@@ -473,32 +350,46 @@ const DecisionAnalyzer: React.FC = () => {
                       {extractedContext.importance} importance
                     </span>
                   </HoverCardTrigger>
-                  <HoverCardContent className="w-80">
-                    <p className="text-sm">
-                      {extractedContext.importance === "high" ? "High importance decisions significantly impact your life or well-being." : extractedContext.importance === "medium" ? "Medium importance decisions have moderate consequences but aren't life-changing." : "Low importance decisions have minor impact and consequences."}
+                  <HoverCardContent className="w-60 p-2 text-xs">
+                    <p>
+                      {extractedContext.importance === "high" 
+                        ? "High importance decisions significantly impact your life or well-being." 
+                        : extractedContext.importance === "medium" 
+                          ? "Medium importance decisions have moderate consequences but aren't life-changing." 
+                          : "Low importance decisions have minor impact and consequences."}
                     </p>
                   </HoverCardContent>
-                </HoverCard>
-                ,{" "}
+                </HoverCard>,{" "}
                 <HoverCard>
                   <HoverCardTrigger asChild>
                     <span className="underline decoration-dotted cursor-help">
                       {extractedContext.timeframe}-term
                     </span>
                   </HoverCardTrigger>
-                  <HoverCardContent className="w-80">
-                    <p className="text-sm">
-                      {extractedContext.timeframe === "long" ? "Long-term decisions have effects that last for years." : extractedContext.timeframe === "medium" ? "Medium-term decisions have effects lasting weeks to months." : "Short-term decisions have immediate effects but don't last long."}
+                  <HoverCardContent className="w-60 p-2 text-xs">
+                    <p>
+                      {extractedContext.timeframe === "long" 
+                        ? "Long-term decisions have effects that last for years." 
+                        : extractedContext.timeframe === "medium" 
+                          ? "Medium-term decisions have effects lasting weeks to months." 
+                          : "Short-term decisions have immediate effects but don't last long."}
                     </p>
                   </HoverCardContent>
                 </HoverCard>
                 {" "}decision.
-                {extractedContext.confidence < 0.5 && <Button variant="link" className="text-decision-purple p-0 h-auto text-sm" onClick={() => setNeedsMoreContext(true)}>
+                {extractedContext.confidence < 0.5 && (
+                  <Button 
+                    variant="link" 
+                    className="text-decision-purple p-0 h-auto text-xs" 
+                    onClick={() => setNeedsMoreContext(true)}
+                  >
                     Provide more context
-                  </Button>}
+                  </Button>
+                )}
               </p>
             </div>
-          </div>}
+          </div>
+        )}
 
         <Dialog open={needsMoreContext} onOpenChange={setNeedsMoreContext}>
           <DialogContent className="sm:max-w-md">
@@ -513,13 +404,25 @@ const DecisionAnalyzer: React.FC = () => {
               <div className="space-y-2">
                 <Label>How important is this decision?</Label>
                 <div className="flex gap-2">
-                  <Button variant={manualImportance === "low" ? "default" : "outline"} className="flex-1" onClick={() => setManualImportance("low")}>
+                  <Button 
+                    variant={manualImportance === "low" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualImportance("low")}
+                  >
                     Low
                   </Button>
-                  <Button variant={manualImportance === "medium" ? "default" : "outline"} className="flex-1" onClick={() => setManualImportance("medium")}>
+                  <Button 
+                    variant={manualImportance === "medium" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualImportance("medium")}
+                  >
                     Medium
                   </Button>
-                  <Button variant={manualImportance === "high" ? "default" : "outline"} className="flex-1" onClick={() => setManualImportance("high")}>
+                  <Button 
+                    variant={manualImportance === "high" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualImportance("high")}
+                  >
                     High
                   </Button>
                 </div>
@@ -528,13 +431,25 @@ const DecisionAnalyzer: React.FC = () => {
               <div className="space-y-2">
                 <Label>What's the time frame?</Label>
                 <div className="flex gap-2">
-                  <Button variant={manualTimeframe === "short" ? "default" : "outline"} className="flex-1" onClick={() => setManualTimeframe("short")}>
+                  <Button 
+                    variant={manualTimeframe === "short" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualTimeframe("short")}
+                  >
                     Short
                   </Button>
-                  <Button variant={manualTimeframe === "medium" ? "default" : "outline"} className="flex-1" onClick={() => setManualTimeframe("medium")}>
+                  <Button 
+                    variant={manualTimeframe === "medium" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualTimeframe("medium")}
+                  >
                     Medium
                   </Button>
-                  <Button variant={manualTimeframe === "long" ? "default" : "outline"} className="flex-1" onClick={() => setManualTimeframe("long")}>
+                  <Button 
+                    variant={manualTimeframe === "long" ? "default" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setManualTimeframe("long")}
+                  >
                     Long
                   </Button>
                 </div>
@@ -553,95 +468,181 @@ const DecisionAnalyzer: React.FC = () => {
           <>
             <Separator className="my-2" />
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <Label>Your Options</Label>
-                {options.length < 5 && <Button variant="outline" size="sm" onClick={addOption} className="flex items-center gap-1">
-                    <Plus className="h-4 w-4" /> Add Option
-                  </Button>}
+                <Label className="text-sm font-medium">Options</Label>
+                {options.length < 5 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addOption} 
+                    className="h-8 text-xs flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Option
+                  </Button>
+                )}
               </div>
 
-              {isGenerating ? <div className="py-8 text-center text-muted-foreground">
+              {isGenerating ? (
+                <div className="py-4 text-center text-muted-foreground text-sm">
                   Generating options based on your decision...
-                </div> : options.length === 0 ? <div className="py-8 text-center text-muted-foreground">
+                </div>
+              ) : options.length === 0 ? (
+                <div className="py-4 text-center text-muted-foreground text-sm">
                   Click the "Generate" button to automatically create options based on your decision.
-                </div> : <div className="space-y-4 max-h-96 overflow-y-auto p-1">
-                  {options.map((option, optionIndex) => <Collapsible key={optionIndex} open={openOptionIndexes.includes(optionIndex)} onOpenChange={() => toggleOptionOpen(optionIndex)} className={`rounded-md border ${selectedOptionIndex === optionIndex ? 'border-decision-purple border-2' : ''}`}>
-                      <div className="p-3 flex justify-between items-center">
-                        <Input placeholder={`Option ${optionIndex + 1}`} value={option.name} onChange={e => updateOptionName(optionIndex, e.target.value)} className="flex-1 mr-2 border-0 focus-visible:ring-0" />
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto px-1 pb-1">
+                  {options.map((option, optionIndex) => (
+                    <Collapsible 
+                      key={optionIndex} 
+                      open={openOptionIndexes.includes(optionIndex)} 
+                      onOpenChange={() => toggleOptionOpen(optionIndex)} 
+                      className={`rounded-md border ${selectedOptionIndex === optionIndex ? 'border-decision-purple border-2' : ''}`}
+                    >
+                      <div className="p-2 flex justify-between items-center">
+                        <Input 
+                          placeholder={`Option ${optionIndex + 1}`} 
+                          value={option.name} 
+                          onChange={e => updateOptionName(optionIndex, e.target.value)} 
+                          className="flex-1 mr-2 border-0 focus-visible:ring-0 h-8 text-sm" 
+                        />
                         <div className="flex items-center gap-1">
-                          {options.length > 2 && <Button variant="ghost" size="icon" onClick={e => {
-                      e.stopPropagation();
-                      removeOption(optionIndex);
-                    }} className="h-8 w-8 flex-none">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>}
+                          {options.length > 2 && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={e => {
+                                e.stopPropagation();
+                                removeOption(optionIndex);
+                              }} 
+                              className="h-7 w-7 flex-none"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                           <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <ChevronDown className={`h-4 w-4 transition-transform ${openOptionIndexes.includes(optionIndex) ? 'rotate-180' : ''}`} />
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <ChevronDown 
+                                className={`h-3 w-3 transition-transform ${openOptionIndexes.includes(optionIndex) ? 'rotate-180' : ''}`} 
+                              />
                             </Button>
                           </CollapsibleTrigger>
                         </div>
                       </div>
                       
                       <CollapsibleContent>
-                        <div className="p-3 pt-0">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label className="text-green-600">Pros</Label>
-                              <ScrollArea className="h-32 rounded border p-2">
-                                {option.pros.map((pro, proIndex) => <div key={proIndex} className="flex items-center gap-2 py-1">
-                                    {proIndex === 0 && !pro.trim() ? <Input placeholder="Enter a pro" value={pro} onChange={e => {
-                              const newOptions = [...options];
-                              newOptions[optionIndex].pros[proIndex] = e.target.value;
-                              setOptions(newOptions);
-                            }} className="flex-1" /> : pro.trim() ? <>
-                                        <div className="flex-1 text-sm flex items-center gap-1">
+                        <div className="p-2 pt-0">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-green-600">Pros</Label>
+                              <ScrollArea className="h-24 rounded border p-1">
+                                {option.pros.map((pro, proIndex) => (
+                                  <div key={proIndex} className="flex items-center gap-1 py-1">
+                                    {proIndex === 0 && !pro.trim() ? (
+                                      <Input 
+                                        placeholder="Enter a pro" 
+                                        value={pro} 
+                                        onChange={e => {
+                                          const newOptions = [...options];
+                                          newOptions[optionIndex].pros[proIndex] = e.target.value;
+                                          setOptions(newOptions);
+                                        }} 
+                                        className="flex-1 h-7 text-xs" 
+                                      />
+                                    ) : pro.trim() ? (
+                                      <>
+                                        <div className="flex-1 text-xs flex items-center gap-1">
                                           <span className="text-green-600">+</span> {pro}
                                         </div>
-                                        <Button variant="ghost" size="icon" onClick={() => removePro(optionIndex, proIndex)} className="h-6 w-6">
-                                          <Trash2 className="h-3 w-3" />
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => removePro(optionIndex, proIndex)} 
+                                          className="h-5 w-5"
+                                        >
+                                          <Trash2 className="h-2 w-2" />
                                         </Button>
-                                      </> : null}
-                                  </div>)}
+                                      </>
+                                    ) : null}
+                                  </div>
+                                ))}
                               </ScrollArea>
-                              <div className="flex items-center gap-2">
-                                <Input placeholder="New pro" value={currentPro} onChange={e => setCurrentPro(e.target.value)} className="flex-1" onKeyDown={e => {
-                            if (e.key === "Enter") {
-                              addPro(optionIndex);
-                            }
-                          }} />
-                                <Button variant="outline" size="sm" onClick={() => addPro(optionIndex)} className="whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                <Input 
+                                  placeholder="New pro" 
+                                  value={currentPro} 
+                                  onChange={e => setCurrentPro(e.target.value)} 
+                                  className="flex-1 h-7 text-xs" 
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") {
+                                      addPro(optionIndex);
+                                    }
+                                  }} 
+                                />
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => addPro(optionIndex)} 
+                                  className="h-7 text-xs whitespace-nowrap"
+                                >
                                   Add
                                 </Button>
                               </div>
                             </div>
 
-                            <div className="space-y-2">
-                              <Label className="text-red-600">Cons</Label>
-                              <ScrollArea className="h-32 rounded border p-2">
-                                {option.cons.map((con, conIndex) => <div key={conIndex} className="flex items-center gap-2 py-1">
-                                    {conIndex === 0 && !con.trim() ? <Input placeholder="Enter a con" value={con} onChange={e => {
-                              const newOptions = [...options];
-                              newOptions[optionIndex].cons[conIndex] = e.target.value;
-                              setOptions(newOptions);
-                            }} className="flex-1" /> : con.trim() ? <>
-                                        <div className="flex-1 text-sm flex items-center gap-1">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-red-600">Cons</Label>
+                              <ScrollArea className="h-24 rounded border p-1">
+                                {option.cons.map((con, conIndex) => (
+                                  <div key={conIndex} className="flex items-center gap-1 py-1">
+                                    {conIndex === 0 && !con.trim() ? (
+                                      <Input 
+                                        placeholder="Enter a con" 
+                                        value={con} 
+                                        onChange={e => {
+                                          const newOptions = [...options];
+                                          newOptions[optionIndex].cons[conIndex] = e.target.value;
+                                          setOptions(newOptions);
+                                        }} 
+                                        className="flex-1 h-7 text-xs" 
+                                      />
+                                    ) : con.trim() ? (
+                                      <>
+                                        <div className="flex-1 text-xs flex items-center gap-1">
                                           <span className="text-red-600">-</span> {con}
                                         </div>
-                                        <Button variant="ghost" size="icon" onClick={() => removeCon(optionIndex, conIndex)} className="h-6 w-6">
-                                          <Trash2 className="h-3 w-3" />
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => removeCon(optionIndex, conIndex)} 
+                                          className="h-5 w-5"
+                                        >
+                                          <Trash2 className="h-2 w-2" />
                                         </Button>
-                                      </> : null}
-                                  </div>)}
+                                      </>
+                                    ) : null}
+                                  </div>
+                                ))}
                               </ScrollArea>
-                              <div className="flex items-center gap-2">
-                                <Input placeholder="New con" value={currentCon} onChange={e => setCurrentCon(e.target.value)} className="flex-1" onKeyDown={e => {
-                            if (e.key === "Enter") {
-                              addCon(optionIndex);
-                            }
-                          }} />
-                                <Button variant="outline" size="sm" onClick={() => addCon(optionIndex)} className="whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                <Input 
+                                  placeholder="New con" 
+                                  value={currentCon} 
+                                  onChange={e => setCurrentCon(e.target.value)} 
+                                  className="flex-1 h-7 text-xs" 
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") {
+                                      addCon(optionIndex);
+                                    }
+                                  }} 
+                                />
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => addCon(optionIndex)} 
+                                  className="h-7 text-xs whitespace-nowrap"
+                                >
                                   Add
                                 </Button>
                               </div>
@@ -649,36 +650,46 @@ const DecisionAnalyzer: React.FC = () => {
                           </div>
                         </div>
                       </CollapsibleContent>
-                    </Collapsible>)}
-                </div>}
+                    </Collapsible>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <Button onClick={analyzeDecision} disabled={isAnalyzing || options.length < 2} className="bg-decision-purple hover:bg-decision-dark text-white font-medium mt-4">
+            <Button 
+              onClick={analyzeDecision} 
+              disabled={isAnalyzing || options.length < 2} 
+              className="bg-decision-purple hover:bg-decision-dark text-white font-medium w-full"
+            >
               {isAnalyzing ? "Analyzing..." : "Analyze Decision"}
             </Button>
             
-            {analysis && <motion.div initial={{
-            opacity: 0,
-            y: 20
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} transition={{
-            duration: 0.5
-          }} className="mt-4 p-4 bg-secondary rounded-lg">
-                <h3 className="font-semibold mb-2">Analysis Result</h3>
-                <div className="whitespace-pre-line text-sm">
+            {analysis && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.5 }} 
+                className="p-3 bg-secondary rounded-lg"
+              >
+                <h3 className="font-semibold text-sm mb-1">Analysis Result</h3>
+                <div className="whitespace-pre-line text-xs max-h-40 overflow-y-auto">
                   {analysis}
                 </div>
-                {selectedOptionIndex !== null && <div className="mt-4 flex items-center text-decision-purple">
-                    <Check className="h-5 w-5 mr-2" />
-                    <span className="font-medium">Recommended: {options[selectedOptionIndex].name}</span>
-                  </div>}
-              </motion.div>}
+                {selectedOptionIndex !== null && (
+                  <div className="mt-2 flex items-center text-decision-purple">
+                    <Check className="h-4 w-4 mr-1" />
+                    <span className="font-medium text-sm">
+                      Recommended: {options[selectedOptionIndex].name}
+                    </span>
+                  </div>
+                )}
+              </motion.div>
+            )}
           </>
         )}
       </CardContent>
-    </Card>;
+    </Card>
+  );
 };
 
 export default DecisionAnalyzer;
