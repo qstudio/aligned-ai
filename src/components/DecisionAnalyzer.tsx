@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,8 @@ const DecisionAnalyzer: React.FC = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showProsConsForOption, setShowProsConsForOption] = useState<number | null>(null);
   const [aiAgreesWithChoice, setAiAgreesWithChoice] = useState<boolean | null>(null);
+  const [isQuestionValid, setIsQuestionValid] = useState(true);
+  const [needsClarification, setNeedsClarification] = useState(false);
   
   const { toast } = useToast();
   
@@ -67,9 +70,23 @@ const DecisionAnalyzer: React.FC = () => {
           timeframe: contextAnalysis.timeframe,
           confidence: contextAnalysis.confidence
         });
+        
+        // Check if the decision is understood
+        if (!contextAnalysis.understood) {
+          setNeedsClarification(true);
+          setIsQuestionValid(false);
+          toast({
+            title: "Question needs clarification",
+            description: "Please provide more details about your decision",
+            variant: "destructive"
+          });
+          return false;
+        }
+        
         setNeedsMoreContext(contextAnalysis.confidence < 0.5);
         setManualImportance(contextAnalysis.importance);
         setManualTimeframe(contextAnalysis.timeframe);
+        
         if (contextAnalysis.suggestedQuestions && contextAnalysis.suggestedQuestions.length > 0) {
           setSuggestedQuestions(contextAnalysis.suggestedQuestions);
           setShowSuggestions(true);
@@ -77,6 +94,18 @@ const DecisionAnalyzer: React.FC = () => {
           setSuggestedQuestions([]);
           setShowSuggestions(false);
         }
+        
+        // If there's a better phrasing suggestion
+        if (contextAnalysis.betterPhrasing) {
+          toast({
+            title: "Suggestion",
+            description: `Consider rephrasing: "${contextAnalysis.betterPhrasing}"`,
+            variant: "default"
+          });
+        }
+        
+        setIsQuestionValid(true);
+        return true;
       } catch (error) {
         console.error("Error analyzing decision:", error);
         toast({
@@ -84,7 +113,15 @@ const DecisionAnalyzer: React.FC = () => {
           description: "Could not analyze your decision context. Using default settings.",
           variant: "destructive"
         });
+        return false;
       }
+    } else {
+      toast({
+        title: "Input too short",
+        description: "Please enter a more detailed decision question",
+        variant: "destructive"
+      });
+      return false;
     }
   };
   
@@ -97,7 +134,13 @@ const DecisionAnalyzer: React.FC = () => {
       });
       return;
     }
-    await processDecisionTitle();
+    
+    // Validate and process the decision title
+    const isValid = await processDecisionTitle();
+    if (!isValid) {
+      return;
+    }
+    
     setIsGenerating(true);
     setOptions([]);
     setOpenOptionIndexes([]);
@@ -105,42 +148,39 @@ const DecisionAnalyzer: React.FC = () => {
     setSelectedOptionIndex(null);
     setAnalysis(null);
     setAiAgreesWithChoice(null);
+    
     try {
       const generatedOptions = await generateOptionsWithLLM(decisionTitle);
-      // Ensure we have exactly two options
-      const limitedOptions = generatedOptions.options.slice(0, 2);
-      if (limitedOptions.length < 2) {
-        // Add a second option if only one was generated
-        limitedOptions.push({
-          name: "Option B",
-          pros: ["AI couldn't generate enough pros"],
-          cons: ["AI couldn't generate enough cons"]
+      
+      if (!generatedOptions.options || generatedOptions.options.length === 0) {
+        toast({
+          title: "Cannot generate options",
+          description: "Please clarify your decision question with more details",
+          variant: "destructive"
         });
+        setNeedsClarification(true);
+        setIsQuestionValid(false);
+        return;
       }
-      setOptions(limitedOptions);
-      setOpenOptionIndexes([0, 1]);
+      
+      // Set options and open them
+      setOptions(generatedOptions.options);
+      setOpenOptionIndexes(Array.from({ length: generatedOptions.options.length }, (_, i) => i));
+      
       toast({
         title: "Options generated",
         description: "AI has created options based on your decision"
       });
+      
+      setIsQuestionValid(true);
     } catch (error) {
       console.error("Error generating options:", error);
       toast({
         title: "Generation error",
-        description: "Could not generate options. Please try again.",
+        description: "Could not generate options. Please try again or clarify your question.",
         variant: "destructive"
       });
-      // Fallback to basic options
-      setOptions([{
-        name: "Option A",
-        pros: ["AI couldn't generate pros"],
-        cons: ["AI couldn't generate cons"]
-      }, {
-        name: "Option B",
-        pros: ["AI couldn't generate pros"],
-        cons: ["AI couldn't generate cons"]
-      }]);
-      setOpenOptionIndexes([0, 1]);
+      setIsQuestionValid(false);
     } finally {
       setIsGenerating(false);
     }
@@ -161,7 +201,12 @@ const DecisionAnalyzer: React.FC = () => {
     setIsAnalyzing(true);
     setAnalysis(null);
 
-    await processDecisionTitle();
+    // Re-validate the question
+    const isValid = await processDecisionTitle();
+    if (!isValid) {
+      setIsAnalyzing(false);
+      return;
+    }
     
     const finalContext = {
       importance: needsMoreContext ? manualImportance : extractedContext.importance,
@@ -214,7 +259,7 @@ const DecisionAnalyzer: React.FC = () => {
               placeholder="It's raining outside and I need to go and feed my sheep - should I go now or later?" 
               value={decisionTitle} 
               onChange={e => setDecisionTitle(e.target.value)} 
-              className="flex-1" 
+              className={`flex-1 ${!isQuestionValid ? 'border-red-400' : ''}`}
             />
             <Button 
               onClick={generateOptions} 
@@ -240,6 +285,23 @@ const DecisionAnalyzer: React.FC = () => {
                     {suggestedQuestions.map((question, idx) => (
                       <li key={idx}>{question}</li>
                     ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {needsClarification && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-2 mt-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-red-800">Your question needs more details:</p>
+                  <p className="text-red-700">Please clarify your decision by providing:</p>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 mt-1">
+                    <li>What specific options are you considering?</li>
+                    <li>What is the context of this decision?</li>
+                    <li>What are your goals or constraints?</li>
                   </ul>
                 </div>
               </div>

@@ -110,6 +110,31 @@ export const analyzeDecisionContext = async (
     );
   }
 
+  // Advanced insufficient context detection
+  if (lowerTitle.includes("?") && !lowerTitle.includes("should") && !lowerTitle.includes("or") && !lowerTitle.includes("vs")) {
+    understood = false;
+    confidence *= 0.5;
+    suggestedQuestions.push(
+      "What are your options in this situation?",
+      "Could you rephrase this as a decision between options?"
+    );
+  }
+
+  // Check for vague language
+  if (
+    lowerTitle.includes("something") ||
+    lowerTitle.includes("somehow") ||
+    lowerTitle.includes("maybe") ||
+    lowerTitle.includes("perhaps") ||
+    lowerTitle.includes("might")
+  ) {
+    confidence *= 0.8;
+    suggestedQuestions.push(
+      "Can you be more specific about your situation?",
+      "What exactly are you trying to decide?"
+    );
+  }
+
   // Suggest better phrasing if low confidence
   if (confidence < 0.5) {
     if (lowerTitle.includes("should i")) {
@@ -138,6 +163,15 @@ export const generateOptionsWithLLM = async (
   await new Promise((resolve) => setTimeout(resolve, 1200));
 
   const lowerTitle = decisionTitle.toLowerCase();
+  
+  // Check if question is too vague or unclear
+  if (
+    decisionTitle.trim().length < 15 ||
+    (lowerTitle.includes("?") && !lowerTitle.includes("should") && !lowerTitle.includes("or") && !lowerTitle.includes("vs"))
+  ) {
+    // Return empty options for unclear questions
+    return { options: [] };
+  }
   
   // Advanced options generation that simulates LLM capabilities
   let options = [
