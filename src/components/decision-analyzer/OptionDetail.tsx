@@ -25,6 +25,7 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
   const formatAnalysisWithLinks = (text: string) => {
     if (!text) return "";
     
+    // First handle the references before we process other markdown
     // Regex to find reference patterns like [1], [2], etc.
     const referenceRegex = /\[(\d+)\]/g;
     
@@ -35,6 +36,8 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
       const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`reference ${refNumber} ${selectedOption.name}`)}`;
       return `<a href="${searchUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${match}</a>`;
     });
+    
+    // Now apply markdown formatting, careful not to affect our links
     
     // Format markdown bold syntax (**text**)
     formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
