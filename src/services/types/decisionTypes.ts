@@ -20,3 +20,8 @@ export interface Option {
 export interface OptionGenerationResponse {
   options: Option[];
 }
+
+// Add the missing DecisionDomainsMap interface
+export interface DecisionDomainsMap {
+  [key: string]: string;
+}
