@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,6 +52,16 @@ const DecisionAnalyzer: React.FC = () => {
   const [showAllOptions, setShowAllOptions] = useState(false);
   const [recommendedOptionIndex, setRecommendedOptionIndex] = useState<number | null>(null);
   const [isAnalysingContext, setIsAnalysingContext] = useState(false);
+  
+  // Reset feedback when the question changes
+  useEffect(() => {
+    if (decisionTitle) {
+      // Reset validation states when user is typing a new question
+      setNeedsClarification(false);
+      setIsQuestionValid(true);
+      setShowSuggestions(false);
+    }
+  }, [decisionTitle]);
   
   const toggleOptionOpen = (index: number) => {
     if (openOptionIndexes.includes(index)) {
