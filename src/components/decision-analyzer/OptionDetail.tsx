@@ -21,7 +21,7 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
   analysis,
   isAnalyzing
 }) => {
-  // Function to convert reference numbers in square brackets to links
+  // Function to convert reference numbers in square brackets to links and format markdown
   const formatAnalysisWithLinks = (text: string) => {
     if (!text) return "";
     
@@ -29,12 +29,26 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
     const referenceRegex = /\[(\d+)\]/g;
     
     // Replace references with links
-    const formattedText = text.replace(referenceRegex, (match, refNumber) => {
+    let formattedText = text.replace(referenceRegex, (match, refNumber) => {
       // For demonstration, we'll create a link to a search for the reference
       // In a real app, you would map these to actual reference URLs
       const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`reference ${refNumber} ${selectedOption.name}`)}`;
       return `<a href="${searchUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${match}</a>`;
     });
+    
+    // Format markdown bold syntax (**text**)
+    formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Format markdown italic syntax (*text*)
+    formattedText = formattedText.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    
+    // Format markdown headings (# heading)
+    formattedText = formattedText.replace(/^# (.*?)$/gm, '<h3 class="text-lg font-bold">$1</h3>');
+    formattedText = formattedText.replace(/^## (.*?)$/gm, '<h4 class="text-md font-semibold">$1</h4>');
+    formattedText = formattedText.replace(/^### (.*?)$/gm, '<h5 class="font-medium">$1</h5>');
+    
+    // Format markdown lists
+    formattedText = formattedText.replace(/^\- (.*?)$/gm, '<li class="ml-4">$1</li>');
     
     return formattedText;
   };
