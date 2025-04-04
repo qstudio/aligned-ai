@@ -37,7 +37,7 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
             </span>
           ) : (
             <span className="flex items-center text-amber-600">
-              <ThumbsDown className="h-4 w-4 mr-1" /> AI recommends the other option
+              <ThumbsDown className="h-4 w-4 mr-1" /> Alined recommends the other option
             </span>
           )
         )}
