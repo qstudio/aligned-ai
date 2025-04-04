@@ -28,11 +28,11 @@ export const OptionDetail: React.FC<OptionDetailProps> = ({
     // Regex to find reference patterns like [1], [2], etc.
     const referenceRegex = /\[(\d+)\]/g;
     
-    // Replace references with properly formed links
+    // Replace references with links that have preventDefault behavior
     let formattedText = text.replace(referenceRegex, (match, refNumber) => {
-      // Create a search URL using the option name
-      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(selectedOption.name)}`;
-      return `<a href="${searchUrl}" class="text-blue-600 hover:underline reference-link" data-reference="${refNumber}">[${refNumber}]</a>`;
+      // Create a more relevant search using just the option name and reference number
+      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`${selectedOption.name} ${refNumber}`)}`;
+      return `<a href="${searchUrl}" class="text-blue-600 hover:underline reference-link" data-reference="${refNumber}">`;
     });
     
     // Now apply markdown formatting, careful not to affect our links
