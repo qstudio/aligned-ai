@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -207,16 +206,7 @@ const DecisionAnalyzer: React.FC = () => {
   
   return (
     <Card className="w-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-xl flex items-center gap-2">
-          <Brain className="h-5 w-5 text-decision-purple" />
-          Decision Analyzer
-        </CardTitle>
-        <CardDescription>
-          Enter your decision question and get AI-powered analysis
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input 
