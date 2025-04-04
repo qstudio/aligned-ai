@@ -12,16 +12,19 @@ import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 type Option = {
   name: string;
   pros: string[];
   cons: string[];
 };
+
 type ContextData = {
   importance: "low" | "medium" | "high";
   timeframe: "short" | "medium" | "long";
   confidence: number;
 };
+
 const DecisionAnalyzer: React.FC = () => {
   const [decisionTitle, setDecisionTitle] = useState("");
   const [options, setOptions] = useState<Option[]>([{
@@ -51,6 +54,7 @@ const DecisionAnalyzer: React.FC = () => {
   const {
     toast
   } = useToast();
+
   const addOption = () => {
     const newOption = {
       name: "",
@@ -61,17 +65,20 @@ const DecisionAnalyzer: React.FC = () => {
     setOptions(newOptions);
     setOpenOptionIndexes([...openOptionIndexes, options.length]);
   };
+
   const removeOption = (index: number) => {
     const newOptions = [...options];
     newOptions.splice(index, 1);
     setOptions(newOptions);
     setOpenOptionIndexes(openOptionIndexes.filter(i => i !== index).map(i => i > index ? i - 1 : i));
   };
+
   const updateOptionName = (index: number, name: string) => {
     const newOptions = [...options];
     newOptions[index].name = name;
     setOptions(newOptions);
   };
+
   const addPro = (index: number) => {
     if (!currentPro.trim()) {
       toast({
@@ -86,6 +93,7 @@ const DecisionAnalyzer: React.FC = () => {
     setOptions(newOptions);
     setCurrentPro("");
   };
+
   const addCon = (index: number) => {
     if (!currentCon.trim()) {
       toast({
@@ -100,16 +108,19 @@ const DecisionAnalyzer: React.FC = () => {
     setOptions(newOptions);
     setCurrentCon("");
   };
+
   const removePro = (optionIndex: number, proIndex: number) => {
     const newOptions = [...options];
     newOptions[optionIndex].pros.splice(proIndex, 1);
     setOptions(newOptions);
   };
+
   const removeCon = (optionIndex: number, conIndex: number) => {
     const newOptions = [...options];
     newOptions[optionIndex].cons.splice(conIndex, 1);
     setOptions(newOptions);
   };
+
   const toggleOptionOpen = (index: number) => {
     if (openOptionIndexes.includes(index)) {
       setOpenOptionIndexes(openOptionIndexes.filter(i => i !== index));
@@ -117,6 +128,7 @@ const DecisionAnalyzer: React.FC = () => {
       setOpenOptionIndexes([...openOptionIndexes, index]);
     }
   };
+
   const extractContextFromTitle = (title: string) => {
     const lowerTitle = title.toLowerCase();
     let importance: "low" | "medium" | "high" = "medium";
@@ -149,6 +161,7 @@ const DecisionAnalyzer: React.FC = () => {
       confidence
     };
   };
+
   const processDecisionTitle = () => {
     if (decisionTitle.trim().length > 5) {
       const extracted = extractContextFromTitle(decisionTitle);
@@ -160,6 +173,7 @@ const DecisionAnalyzer: React.FC = () => {
       setManualTimeframe(extracted.timeframe);
     }
   };
+
   const generateOptions = () => {
     if (!decisionTitle.trim()) {
       toast({
@@ -184,70 +198,174 @@ const DecisionAnalyzer: React.FC = () => {
       });
     }, 1500);
   };
+
   const generateSampleOptions = (title: string): Option[] => {
     const lowerTitle = title.toLowerCase();
-    let optionSet: Option[] = [{
-      name: "Option A",
-      pros: ["General benefit"],
-      cons: ["Potential drawback"]
-    }, {
-      name: "Option B",
-      pros: ["Alternative benefit"],
-      cons: ["Different limitation"]
-    }];
-    if (lowerTitle.includes("job") || lowerTitle.includes("career") || lowerTitle.includes("work")) {
-      optionSet = [{
-        name: "Accept the offer",
-        pros: ["New opportunities for growth"],
-        cons: ["Uncertainty and adjustment period"]
-      }, {
-        name: "Stay in current position",
-        pros: ["Stability and familiarity"],
-        cons: ["Potential for stagnation"]
-      }];
-    } else if (lowerTitle.includes("buy") || lowerTitle.includes("purchase")) {
-      optionSet = [{
-        name: "Make the purchase now",
-        pros: ["Immediate satisfaction and use"],
-        cons: ["Financial impact"]
-      }, {
-        name: "Delay or forgo the purchase",
-        pros: ["Financial savings"],
-        cons: ["Missing out on benefits"]
-      }];
-    } else if (lowerTitle.includes("school") || lowerTitle.includes("study") || lowerTitle.includes("learn")) {
-      optionSet = [{
-        name: "Pursue further education",
-        pros: ["Knowledge and credential acquisition"],
-        cons: ["Time and financial investment"]
-      }, {
-        name: "Enter workforce directly",
-        pros: ["Immediate income and experience"],
-        cons: ["Potential career ceiling without credentials"]
-      }];
-    } else if (lowerTitle.includes("relationship") || lowerTitle.includes("partner") || lowerTitle.includes("marry")) {
-      optionSet = [{
-        name: "Commit to the relationship",
-        pros: ["Emotional connection and support"],
-        cons: ["Reduced personal freedom"]
-      }, {
-        name: "Maintain independence",
-        pros: ["Personal freedom and growth"],
-        cons: ["Potential loneliness"]
-      }];
-    } else if (lowerTitle.includes("move") || lowerTitle.includes("relocate") || lowerTitle.includes("home")) {
-      optionSet = [{
-        name: "Relocate",
-        pros: ["New environment and opportunities"],
-        cons: ["Leaving behind familiar surroundings and connections"]
-      }, {
-        name: "Stay in current location",
-        pros: ["Established community and familiarity"],
-        cons: ["Missing potential opportunities elsewhere"]
-      }];
+    
+    let optionSet: Option[] = [
+      {
+        name: "Option A",
+        pros: ["Potential benefit"],
+        cons: ["Potential drawback"]
+      }, 
+      {
+        name: "Option B",
+        pros: ["Alternative benefit"],
+        cons: ["Different limitation"]
+      }
+    ];
+
+    if (lowerTitle.includes("job") || lowerTitle.includes("career") || lowerTitle.includes("work") || 
+        lowerTitle.includes("offer") || lowerTitle.includes("position") || lowerTitle.includes("employment")) {
+      optionSet = [
+        {
+          name: "Accept the offer",
+          pros: ["New opportunities for growth", "Potentially better compensation", "Fresh environment"],
+          cons: ["Uncertainty with new role", "Adjustment period", "Leaving familiar environment"]
+        },
+        {
+          name: "Stay in current position",
+          pros: ["Stability and familiarity", "Established relationships", "Known expectations"],
+          cons: ["Potential stagnation", "Missing new opportunities", "Possible career ceiling"]
+        }
+      ];
+    } 
+    else if (lowerTitle.includes("buy") || lowerTitle.includes("purchase") || 
+             lowerTitle.includes("get") || lowerTitle.includes("spend")) {
+      
+      const item = extractItemFromTitle(lowerTitle);
+      
+      optionSet = [
+        {
+          name: `Buy ${item} now`,
+          pros: ["Immediate benefit and use", "Current market options", "Solves present need"],
+          cons: ["Financial impact", "Commitment to this choice", "Potential for buyer's remorse"]
+        },
+        {
+          name: `Wait on ${item} purchase`,
+          pros: ["Financial savings", "More time to research options", "Potential for price drops"],
+          cons: ["Delayed benefits", "Continued need gap", "Risk of price increases"]
+        }
+      ];
     }
+    else if (lowerTitle.includes("school") || lowerTitle.includes("study") || lowerTitle.includes("learn") || 
+             lowerTitle.includes("education") || lowerTitle.includes("college") || lowerTitle.includes("degree")) {
+      optionSet = [
+        {
+          name: "Pursue further education",
+          pros: ["Knowledge and credential acquisition", "Career advancement potential", "Personal growth"],
+          cons: ["Time investment", "Financial cost", "Delayed income potential"]
+        },
+        {
+          name: "Enter workforce directly",
+          pros: ["Immediate income", "Practical experience", "No student debt"],
+          cons: ["Potential career ceiling", "Fewer credentials", "Harder to change fields later"]
+        }
+      ];
+    }
+    else if (lowerTitle.includes("relationship") || lowerTitle.includes("partner") || 
+             lowerTitle.includes("marry") || lowerTitle.includes("boyfriend") || 
+             lowerTitle.includes("girlfriend") || lowerTitle.includes("date") ||
+             lowerTitle.includes("breakup") || lowerTitle.includes("divorce")) {
+      optionSet = [
+        {
+          name: "Continue the relationship",
+          pros: ["Emotional connection and support", "Shared history and understanding", "Relationship stability"],
+          cons: ["Current issues may persist", "Potential for future regret", "Opportunity cost of other paths"]
+        },
+        {
+          name: "End the relationship",
+          pros: ["Freedom to pursue other paths", "Elimination of current issues", "Personal growth opportunity"],
+          cons: ["Emotional pain and adjustment", "Loss of connection", "Uncertainty about the future"]
+        }
+      ];
+    }
+    else if (lowerTitle.includes("move") || lowerTitle.includes("relocate") || 
+             lowerTitle.includes("home") || lowerTitle.includes("city") || 
+             lowerTitle.includes("apartment") || lowerTitle.includes("house")) {
+      optionSet = [
+        {
+          name: "Make the move",
+          pros: ["New environment and opportunities", "Potential lifestyle improvements", "Fresh start"],
+          cons: ["Leaving behind familiar surroundings", "Moving costs and hassle", "Adjustment period"]
+        },
+        {
+          name: "Stay where you are",
+          pros: ["Established community and familiarity", "Avoiding moving costs", "Stability"],
+          cons: ["Missing potential opportunities elsewhere", "Remaining issues unsolved", "Potential stagnation"]
+        }
+      ];
+    }
+    else if (lowerTitle.includes("travel") || lowerTitle.includes("vacation") || 
+             lowerTitle.includes("trip") || lowerTitle.includes("visit") || 
+             lowerTitle.includes("holiday")) {
+      optionSet = [
+        {
+          name: "Take the trip",
+          pros: ["New experiences and memories", "Break from routine", "Cultural enrichment"],
+          cons: ["Financial cost", "Time away from work/commitments", "Planning stress"]
+        },
+        {
+          name: "Stay home/postpone",
+          pros: ["Financial savings", "No disruption to routine", "Opportunity for local activities"],
+          cons: ["Missed experiences", "Potential disappointment", "Continued desire to travel"]
+        }
+      ];
+    }
+    else if (lowerTitle.includes("health") || lowerTitle.includes("doctor") || 
+             lowerTitle.includes("treatment") || lowerTitle.includes("surgery") ||
+             lowerTitle.includes("diet") || lowerTitle.includes("exercise")) {
+      optionSet = [
+        {
+          name: "Pursue treatment/change",
+          pros: ["Potential health improvement", "Addressing the issue directly", "Peace of mind"],
+          cons: ["Potential side effects", "Financial cost", "Recovery/adjustment time"]
+        },
+        {
+          name: "Seek alternatives/wait",
+          pros: ["Avoiding immediate intervention", "Time to consider options", "Possibly less invasive"],
+          cons: ["Problem may worsen", "Continued symptoms/issues", "Delayed resolution"]
+        }
+      ];
+    }
+    else if (lowerTitle.includes("should i")) {
+      const action = extractActionFromTitle(lowerTitle);
+      
+      optionSet = [
+        {
+          name: `Yes, ${action}`,
+          pros: ["Potential for positive outcome", "Taking action rather than wondering", "New experience"],
+          cons: ["Risk of negative outcome", "Commitment of resources", "Potential regret"]
+        },
+        {
+          name: `No, don't ${action}`,
+          pros: ["Avoiding potential risks", "Conserving resources", "Maintaining status quo"],
+          cons: ["Missing potential benefits", "Continued indecision", "Possible regret of inaction"]
+        }
+      ];
+    }
+    
     return optionSet;
   };
+
+  const extractItemFromTitle = (title: string): string => {
+    const cleanTitle = title.replace(/should i buy|should i get|should i purchase|buy or not|get or not/gi, '').trim();
+    
+    if (cleanTitle.includes(" or ")) {
+      return "the item";
+    }
+    
+    return cleanTitle || "the item";
+  };
+
+  const extractActionFromTitle = (title: string): string => {
+    const match = title.match(/should i\s+(.+?)(?:\?|$)/i);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    return "proceed with this action";
+  };
+
   const analyzeDecision = () => {
     if (!decisionTitle.trim()) {
       toast({
@@ -311,6 +429,7 @@ const DecisionAnalyzer: React.FC = () => {
       });
     }, 1500);
   };
+
   return <Card className="w-full">
       <CardHeader>
         
@@ -548,4 +667,5 @@ const DecisionAnalyzer: React.FC = () => {
       </CardContent>
     </Card>;
 };
+
 export default DecisionAnalyzer;
