@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Wand2, AlertCircle } from "lucide-react";
+import { Loader2, Wand2, AlertCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 interface DecisionInputProps {
   decisionTitle: string;
@@ -14,6 +15,7 @@ interface DecisionInputProps {
   isQuestionValid: boolean;
   suggestedQuestions: string[];
   showSuggestions: boolean;
+  betterPhrasing?: string;
 }
 
 export const DecisionInput: React.FC<DecisionInputProps> = ({
@@ -26,7 +28,15 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
   isQuestionValid,
   suggestedQuestions,
   showSuggestions,
+  betterPhrasing,
 }) => {
+  const useBetterPhrasing = () => {
+    if (betterPhrasing) {
+      setDecisionTitle(betterPhrasing);
+      toast.success("Using suggested phrasing");
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
@@ -55,6 +65,25 @@ export const DecisionInput: React.FC<DecisionInputProps> = ({
           )}
         </Button>
       </div>
+
+      {betterPhrasing && (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-2 mt-2">
+          <div className="flex items-start gap-2">
+            <RefreshCw className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="text-sm flex-1">
+              <p className="font-medium text-blue-800">Suggested rephrasing:</p>
+              <p className="text-blue-700">{betterPhrasing}</p>
+              <Button 
+                variant="link" 
+                onClick={useBetterPhrasing} 
+                className="p-0 h-auto text-blue-600"
+              >
+                Use this phrasing
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {needsClarification && (
         <div className="bg-red-50 border border-red-200 rounded-md p-2 mt-2">

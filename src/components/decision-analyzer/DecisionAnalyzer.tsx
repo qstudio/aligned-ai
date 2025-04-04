@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +13,7 @@ import {
   generateOptionsWithLLM, 
   analyzeDecisionWithLLM 
 } from "@/services/llmService";
+import { toast } from "sonner";
 
 const DecisionAnalyzer: React.FC = () => {
   const [decisionTitle, setDecisionTitle] = useState("");
@@ -41,14 +41,14 @@ const DecisionAnalyzer: React.FC = () => {
   const [showAllOptions, setShowAllOptions] = useState(false);
   const [recommendedOptionIndex, setRecommendedOptionIndex] = useState<number | null>(null);
   const [isAnalysingContext, setIsAnalysingContext] = useState(false);
+  const [betterPhrasing, setBetterPhrasing] = useState<string | undefined>(undefined);
   
-  // Reset feedback when the question changes
   useEffect(() => {
     if (decisionTitle) {
-      // Reset validation states when user is typing a new question
       setNeedsClarification(false);
       setIsQuestionValid(true);
       setShowSuggestions(false);
+      setBetterPhrasing(undefined);
     }
   }, [decisionTitle]);
   
@@ -71,7 +71,12 @@ const DecisionAnalyzer: React.FC = () => {
           confidence: contextAnalysis.confidence
         });
         
-        // Check if the decision is understood
+        if (contextAnalysis.betterPhrasing && contextAnalysis.betterPhrasing !== decisionTitle) {
+          setBetterPhrasing(contextAnalysis.betterPhrasing);
+        } else {
+          setBetterPhrasing(undefined);
+        }
+        
         if (!contextAnalysis.understood) {
           setNeedsClarification(true);
           setIsQuestionValid(false);
@@ -82,20 +87,24 @@ const DecisionAnalyzer: React.FC = () => {
           };
         }
         
-        setNeedsMoreContext(contextAnalysis.confidence < 0.5);
+        const lowConfidence = contextAnalysis.confidence < 0.3;
+        setNeedsMoreContext(lowConfidence);
         setManualImportance(contextAnalysis.importance);
         setManualTimeframe(contextAnalysis.timeframe);
         
         if (contextAnalysis.suggestedQuestions && contextAnalysis.suggestedQuestions.length > 0) {
           setSuggestedQuestions(contextAnalysis.suggestedQuestions);
           setShowSuggestions(true);
-          setNeedsClarification(true);
-          setIsQuestionValid(false);
-          setIsAnalysingContext(false);
-          return {
-            isValid: false,
-            needsClarification: true
-          };
+          
+          if (lowConfidence) {
+            setNeedsClarification(true);
+            setIsQuestionValid(false);
+            setIsAnalysingContext(false);
+            return {
+              isValid: false,
+              needsClarification: true
+            };
+          }
         } else {
           setSuggestedQuestions([]);
           setShowSuggestions(false);
@@ -111,6 +120,7 @@ const DecisionAnalyzer: React.FC = () => {
       } catch (error) {
         console.error("Error analyzing decision:", error);
         setIsAnalysingContext(false);
+        toast.error("Error analyzing your decision. Please try again.");
         return {
           isValid: false,
           needsClarification: false
@@ -129,7 +139,6 @@ const DecisionAnalyzer: React.FC = () => {
       return;
     }
     
-    // Validate and process the decision title
     const validationResult = await processDecisionTitle();
     if (!validationResult?.isValid) {
       return;
@@ -152,18 +161,20 @@ const DecisionAnalyzer: React.FC = () => {
         setNeedsClarification(true);
         setIsQuestionValid(false);
         setShowOptions(false);
+        toast.error("Couldn't generate options. Please provide more details about your decision.");
         return;
       }
       
-      // Set options and open them
       setOptions(generatedOptions.options);
       setOpenOptionIndexes(Array.from({ length: generatedOptions.options.length }, (_, i) => i));
       
       setIsQuestionValid(true);
+      toast.success(`Generated ${generatedOptions.options.length} options for your decision`);
     } catch (error) {
       console.error("Error generating options:", error);
       setIsQuestionValid(false);
       setShowOptions(false);
+      toast.error("Error generating options. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -179,7 +190,6 @@ const DecisionAnalyzer: React.FC = () => {
     setIsAnalyzing(true);
     setAnalysis(null);
 
-    // Re-validate the question
     const isValid = await processDecisionTitle();
     if (!isValid) {
       setIsAnalyzing(false);
@@ -195,8 +205,6 @@ const DecisionAnalyzer: React.FC = () => {
       const analysisResult = await analyzeDecisionWithLLM(decisionTitle, options, finalContext);
       setAnalysis(analysisResult);
       
-      // Determine if AI agrees with choice
-      // Simple heuristic: Check pros vs cons counts for each option
       const optionScores = options.map((option, idx) => {
         const validPros = option.pros.filter(p => p.trim()).length;
         const validCons = option.cons.filter(c => c.trim()).length;
@@ -213,6 +221,7 @@ const DecisionAnalyzer: React.FC = () => {
       setAiAgreesWithChoice(index === aiRecommendation);
     } catch (error) {
       console.error("Error analyzing decision:", error);
+      toast.error("Error analyzing your choice. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -231,6 +240,7 @@ const DecisionAnalyzer: React.FC = () => {
           isQuestionValid={isQuestionValid}
           suggestedQuestions={suggestedQuestions}
           showSuggestions={showSuggestions}
+          betterPhrasing={betterPhrasing}
         />
 
         <ContextDialog

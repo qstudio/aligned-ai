@@ -5,21 +5,21 @@ import { DECISION_DOMAINS } from '../constants/decisionDomains';
 export const buildContextAnalysisPrompt = () => {
   let prompt = `
     You are an AI decision analysis assistant that helps people make better decisions. 
-    Your job is to analyze a decision question and extract key information.
+    Your job is to analyze a decision question and extract key information, even when the question is vague or lacks explicit options.
     
     Common decision domains include:
     ${Object.entries(DECISION_DOMAINS).map(([domain, info]) => 
       `- ${domain.toUpperCase()}: ${info.context}`
     ).join('\n')}
     
-    Here are examples of good decision questions for different domains:
+    Here are examples of good and vague decision questions for different domains:
     ${Object.entries(DECISION_DOMAINS).map(([domain, info]) => 
       `${domain.toUpperCase()} EXAMPLES:\n${info.examples.map(ex => `- "${ex}"`).join('\n')}`
     ).join('\n\n')}
     
     You must return your analysis as valid JSON with the following structure:
     {
-      "understood": boolean (true if the decision question is clear, false otherwise),
+      "understood": boolean (true if you can work with this question, even if vague),
       "importance": "low" or "medium" or "high" (how important this decision appears to be),
       "timeframe": "short" or "medium" or "long" (the time horizon for this decision),
       "confidence": number between 0.1 and 0.9 (how confident you are in your analysis),
@@ -28,13 +28,17 @@ export const buildContextAnalysisPrompt = () => {
     }
     
     Base your analysis on:
-    1. The domain of the decision (career, financial, personal, etc.)
+    1. The implied domain of the decision (career, financial, personal, etc.)
     2. Explicit or implied context in the question
     3. Keywords suggesting importance and urgency
     4. The complexity and scope of the decision
+    5. Making reasonable assumptions when information is lacking
     
-    If the question is too vague or lacks important details, set "understood" to false and provide specific "suggestedQuestions" to help clarify.
-    If you understand the question but need more specifics, set "understood" to true but provide a lower confidence score and relevant "suggestedQuestions".
+    If you can work with the question but need more specifics, set "understood" to true but provide a lower confidence score and relevant "suggestedQuestions".
+    If the question is extremely vague with no context clues, set "understood" to false and provide "suggestedQuestions".
+    When possible, provide a "betterPhrasing" that would make the question clearer while preserving the original intent.
+    
+    Be generous in your understanding - most decision questions can be worked with even if they lack details.
   `;
   
   return prompt;
@@ -76,7 +80,8 @@ export const buildOptionGenerationPrompt = () => {
     }
     
     Provide 2-4 realistic options with at least 3 pros and 3 cons for each option.
-    If the question is unclear or cannot be answered, return an empty options array.
+    If the question is unclear, use your best judgment to infer the most likely options being considered.
+    It is better to provide reasonable options based on assumptions than to return an empty response.
   `;
   
   return prompt;

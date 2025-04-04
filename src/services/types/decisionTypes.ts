@@ -1,34 +1,30 @@
 
-// Types for context analysis responses from the LLM
-export type ContextAnalysisResponse = {
+// Types for decision domain knowledge base
+export interface DecisionDomainInfo {
+  context: string;
+  examples: string[];
+}
+
+export interface DecisionDomainsMap {
+  [key: string]: DecisionDomainInfo;
+}
+
+// Type for the response from context analysis
+export interface ContextAnalysisResponse {
   understood: boolean;
-  importance: "low" | "medium" | "high";
-  timeframe: "short" | "medium" | "long";
+  importance: 'low' | 'medium' | 'high';
+  timeframe: 'short' | 'medium' | 'long';
   confidence: number;
   suggestedQuestions?: string[];
   betterPhrasing?: string;
-};
+}
 
-// Types for option generation responses from the LLM
-export type OptionGenerationResponse = {
+// Type for option generation response
+export interface OptionGenerationResponse {
   options: {
     name: string;
     pros: string[];
     cons: string[];
   }[];
   rationale?: string;
-};
-
-export type DecisionContext = {
-  importance: "low" | "medium" | "high";
-  timeframe: "short" | "medium" | "long";
-};
-
-export type DecisionDomain = {
-  context: string;
-  examples: string[];
-};
-
-export type DecisionDomainsMap = {
-  [key: string]: DecisionDomain;
-};
+}

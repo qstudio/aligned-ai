@@ -26,7 +26,7 @@ export const analyzeDecisionContext = async (
         understood: true,
         importance: "medium",
         timeframe: "medium",
-        confidence: 0.5,
+        confidence: 0.4,
         suggestedQuestions: ["Could you provide more context about your decision?"]
       };
     }
@@ -36,7 +36,7 @@ export const analyzeDecisionContext = async (
       understood: parsed.understood ?? true,
       importance: parsed.importance ?? "medium",
       timeframe: parsed.timeframe ?? "medium",
-      confidence: Math.min(Math.max(parsed.confidence ?? 0.5, 0.1), 0.9),
+      confidence: Math.min(Math.max(parsed.confidence ?? 0.4, 0.1), 0.9),
       suggestedQuestions: parsed.suggestedQuestions,
       betterPhrasing: parsed.betterPhrasing
     };
@@ -47,7 +47,7 @@ export const analyzeDecisionContext = async (
       understood: true,
       importance: "medium",
       timeframe: "medium",
-      confidence: 0.5,
+      confidence: 0.4,
       suggestedQuestions: ["Could you provide more details about your decision?"]
     };
   }
